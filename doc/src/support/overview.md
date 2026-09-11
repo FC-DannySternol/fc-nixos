@@ -114,4 +114,4 @@ Both alice and bob should share the same terminal now. For further details, plea
 
 ### Limitations
 !!! warning "Limitations"
-	`screen` cannot be run inside `sudo` sessions. So start screen first and then sudo inside the screen session.>>>>>>> merge rev
+	`screen` cannot be run inside `sudo` sessions. So start screen first and then sudo inside the screen session.
