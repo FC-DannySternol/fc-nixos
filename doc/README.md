@@ -61,6 +61,9 @@ make    # checkout-versioned-docs -> gen-platform-versions -> html
 | `make test` | Runs the test suite in `tests/` (see [Tests](#tests)) |
 | `make clean` | Removes `_build/`, the placed `src/<ver>/` trees, and the placement manifest |
 
+Both tool targets accept `MATCHED=<rev>` to override the matched rev
+(see [Versioned documentation](#versioned-documentation)).
+
 ### Running tools directly
 
 ```bash
@@ -154,11 +157,14 @@ Rev resolution is auto-detected at the repository path:
   `tools/checkout_versioned_docs.py` resolves bookmarks strictly
   locally (no pull, no network) and exports the snapshots under
   `src/<ver>/`.
-- **git (CI):** the TOML `rev`s ARE the GitHub mirror branch names,
-  resolved as `refs/remotes/origin/<branch>` of a full clone. The
-  matched ref comes from `--matched`, falling back to
-  `GITHUB_REF_NAME` (the branch GitHub Actions built); with neither
-  set the build fails loudly.
+- **git (mirror clone):** the TOML `rev`s ARE the GitHub mirror
+  branch names, resolved as `refs/remotes/origin/<branch>` of a full
+  clone. The matched ref comes from `--matched` (the make targets
+  take `MATCHED=<rev>`), falling back to `GITHUB_REF_NAME` (the
+  branch GitHub Actions built), then to the clone's CHECKED-OUT
+  branch -- the git counterpart of the hg active bookmark. A detached
+  HEAD or a branch matching no TOML rev fails loudly with the known
+  revs.
 
 ### Content fixes and the rollback contract
 
