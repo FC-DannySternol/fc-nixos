@@ -15,8 +15,7 @@ from pathlib import Path
 
 import tomllib
 from pytest_readable import readable
-
-DOC = Path(__file__).resolve().parents[1]
+from tests.helpers import DOC_ROOT as DOC
 
 SECURITY_PAGES = [
     "security/data-protection.md",
@@ -24,6 +23,12 @@ SECURITY_PAGES = [
     "security/network.md",
     "security/policy.md",
     "security/software-vulnerabilities.md",
+]
+
+SUPPORT_PAGES = [
+    "support/chat.md",
+    "support/overview.md",
+    "support/shared-screen-sessions.md",
 ]
 
 
@@ -52,7 +57,7 @@ def test_nav_general_shape() -> None:
     assert re.fullmatch(r"changes/\d{4}/r\d{3}\.md", target)
     assert (DOC / "src" / target).is_file()
     assert children[1] == {"Security": SECURITY_PAGES}
-    assert children[2] == {"Support": "support/overview.md"}
+    assert children[2] == {"Support": SUPPORT_PAGES}
     assert list(nav[1]) == ["Infrastructure"]
 
 

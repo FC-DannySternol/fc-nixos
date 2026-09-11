@@ -9,11 +9,11 @@ placement pipeline's content-fix wiring on a minimal hg fixture.
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import pytest
 from structlog.testing import capture_logs
+from tests.helpers import hg
 from tools.checkout_versioned_docs import (
     MANIFEST_NAME,
     STATUS_CLAUSE,
@@ -94,7 +94,7 @@ def test_banner_links_counterpart() -> None:
         "    Platform version 25.11 is in sunsetting -- this page is kept"
         " for reference.\n"
         "    The stable documentation for this topic is the"
-        " [26.05 version](../../components/x).\n\n"
+        " [26.05 version](../../components/x.md).\n\n"
     )
 
 
@@ -107,7 +107,7 @@ def test_banner_links_manual_without_counterpart() -> None:
         "    Platform version 25.11 is in sunsetting -- this page is kept"
         " for reference.\n"
         "    The stable documentation for this topic is the"
-        " [26.05 manual](../index).\n\n"
+        " [26.05 manual](../index.md).\n\n"
     )
 
 
@@ -128,7 +128,7 @@ def test_process_snapshot_annotates_sunsetting(tmp_path: Path) -> None:
     assert text.startswith("---\n")
     assert "exclude: true" in text.split("!!! warning", 1)[0]
     assert "is in sunsetting" in text
-    assert "[26.05 manual](../../index)" in text
+    assert "[26.05 manual](../../index.md)" in text
     assert text.endswith("\n# body\n")
     assert count == 1
     assert any(
@@ -155,7 +155,7 @@ def test_process_snapshot_old_stable_wording(tmp_path: Path) -> None:
     text = page.read_text()
     assert "is an older version" in text
     assert "is in sunsetting" not in text
-    assert "[26.11 manual](../index)" in text
+    assert "[26.11 manual](../index.md)" in text
     assert count == 1
 
 
@@ -164,14 +164,6 @@ def test_status_clause_covers_snapshot_statuses() -> None:
     wording may say 'sunsetting'."""
     assert set(STATUS_CLAUSE) == {"stable", "sunsetting"}
     assert "sunsetting" not in STATUS_CLAUSE["stable"]
-
-
-def hg(repo: Path, *args: str) -> str:
-    proc = subprocess.run(
-        ["hg", *args], cwd=repo, capture_output=True, text=True, check=False
-    )
-    assert proc.returncode == 0, f"hg {args} failed: {proc.stderr}"
-    return proc.stdout
 
 
 OLD_BANNER_PAGE = (
