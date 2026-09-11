@@ -339,6 +339,10 @@ FIXES: list[tuple[str, str]] = [
         "../../getting-started/index.md#firststeps",
         "../../infrastructure/getting-started/index.md#firststeps",
     ),
+    # support single-page merge: the split support/ tree is gone from
+    # the stable manual; snapshot pages that cross-link the stable
+    # support page land on the new root-level page
+    ("../../support/index.md#support", "../../support.md"),
     ("../reference/users/index.md", "../platform/users/index.md"),
     # pre-rename infrastructure targets (storage.md -> block-storage.md);
     # the longer performance anchor must run before its shorter prefix

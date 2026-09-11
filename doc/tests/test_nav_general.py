@@ -25,10 +25,9 @@ SECURITY_PAGES = [
     "security/software-vulnerabilities.md",
 ]
 
-# Support is a single page now (chat and shared-screen-sessions were
-# merged into overview; the standalone pages stay as unlisted,
-# URL-stable duplicates).
-SUPPORT_PAGE = "support/overview.md"
+# Support is a single page now: chat and shared-screen-sessions were
+# merged into it, the split support/ pages are gone entirely.
+SUPPORT_PAGE = "support.md"
 
 
 @readable(
