@@ -25,11 +25,10 @@ SECURITY_PAGES = [
     "security/software-vulnerabilities.md",
 ]
 
-SUPPORT_PAGES = [
-    "support/chat.md",
-    "support/overview.md",
-    "support/shared-screen-sessions.md",
-]
+# Support is a single page now (chat and shared-screen-sessions were
+# merged into overview; the standalone pages stay as unlisted,
+# URL-stable duplicates).
+SUPPORT_PAGE = "support/overview.md"
 
 
 @readable(
@@ -57,7 +56,7 @@ def test_nav_general_shape() -> None:
     assert re.fullmatch(r"changes/\d{4}/r\d{3}\.md", target)
     assert (DOC / "src" / target).is_file()
     assert children[1] == {"Security": SECURITY_PAGES}
-    assert children[2] == {"Support": SUPPORT_PAGES}
+    assert children[2] == {"Support": SUPPORT_PAGE}
     assert list(nav[1]) == ["Infrastructure"]
 
 

@@ -2,7 +2,8 @@
 
 The counterpart of ``tools.gen_platform_versions.py``: the entry
 matched by :mod:`tools.vcs_backend` (the hg repo's ACTIVE bookmark
-locally, or the ``--matched`` ref in a git mirror clone) is the local
+locally, or in a git mirror clone the ``--matched`` ref /
+``GITHUB_REF_NAME`` / checked-out branch) is the local
 manual -- never checked out. Every OTHER entry in
 ``platform-versions.toml`` is resolved STRICTLY locally (hg:
 ``hg log -r <rev>``, git: ``git rev-parse refs/remotes/origin/<rev>``
@@ -334,7 +335,8 @@ def run_checkout(
     Shared by ``main`` and tests -- everything except argparse and log
     configuration lives here. The entry selected by the VCS seam
     (:func:`tools.vcs_backend.matched_entry`: ACTIVE bookmark for hg,
-    ``matched_ref``/``GITHUB_REF_NAME`` for git) IS the local manual
+    ``matched_ref``/``GITHUB_REF_NAME``/checked-out branch for git)
+    IS the local manual
     and is never checked out; ALL other entries become snapshots, a
     non-matched ``[stable]`` included (from its namespaced tree, like
     a sunsetting version). Every placement is made link-clean (content
@@ -419,7 +421,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="REV",
         default=None,
         help="Rev whose entry IS the manual at '/' (default: the ACTIVE "
-        "bookmark of an hg repo; in git mode GITHUB_REF_NAME)",
+        "bookmark of an hg repo; in git mode GITHUB_REF_NAME, then "
+        "the clone's checked-out branch)",
     )
     args = parser.parse_args(argv)
 

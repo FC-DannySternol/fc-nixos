@@ -9,8 +9,8 @@ Two inputs, both on disk and strictly local:
   ``[stable]`` -- is placed as a snapshot under ``src/<ver>/`` by
   ``tools/checkout_versioned_docs.py`` (each builds at ``/<ver>/``).
   Matching is backend-dependent: an hg repo contributes its ACTIVE
-  bookmark, a git mirror clone the ``--matched`` flag or
-  ``GITHUB_REF_NAME``.
+  bookmark, a git mirror clone the ``--matched`` flag,
+  ``GITHUB_REF_NAME``, or its checked-out branch.
 
 * the file trees -- the local ``src/`` tree plus every ``src/<ver>/``
   snapshot. A page is identified by its URL-shaped page-id
@@ -356,7 +356,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="REV",
         default=None,
         help="Rev whose entry IS the manual at '/' (default: the ACTIVE "
-        "bookmark of an hg repo; in git mode GITHUB_REF_NAME)",
+        "bookmark of an hg repo; in git mode GITHUB_REF_NAME, then "
+        "the clone's checked-out branch)",
     )
     parser.add_argument(
         "--out",

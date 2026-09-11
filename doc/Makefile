@@ -2,11 +2,15 @@
 
 all: checkout-versioned-docs gen-platform-versions html
 
+# Explicit matched-rev override for the tools (empty: auto-detect --
+# hg ACTIVE bookmark; git GITHUB_REF_NAME, then checked-out branch).
+TOOL_ARGS := $(if $(MATCHED),--matched $(MATCHED),)
+
 gen-platform-versions: 
-	./appenv python -m tools.gen_platform_versions
+	./appenv python -m tools.gen_platform_versions $(TOOL_ARGS)
 
 checkout-versioned-docs: 
-	./appenv python -m tools.checkout_versioned_docs
+	./appenv python -m tools.checkout_versioned_docs $(TOOL_ARGS)
 
 html:
 	./zensical build
