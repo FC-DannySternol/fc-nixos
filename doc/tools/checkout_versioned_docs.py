@@ -53,7 +53,6 @@ import hashlib
 import json
 import re
 import shutil
-import sys
 import tempfile
 from collections.abc import Sequence
 from pathlib import Path
@@ -61,9 +60,8 @@ from pathlib import Path
 import structlog
 
 from tools import snapshot_content_fixes
+from tools._cli import DOC_ROOT, REPO_ROOT, configure_cli_logging
 from tools.gen_platform_versions import (
-    DOC_ROOT,
-    REPO_ROOT,
     VersionEntry,
     load_versions,
 )
@@ -370,33 +368,13 @@ def run_checkout(
         log.info("content-fixes-applied", ver=entry.ver, pages=fixed)
         if entry.status != "prerelease":
             ensure_version_index(tree, entry.ver)
-            process_snapshot(
-                tree, entry.ver, entry.status, manual.ver, src_root
-            )
+            process_snapshot(tree, entry.ver, entry.status, manual.ver, src_root)
         result["versions"][entry.ver] = {"ref": ref}
         checked += 1
 
     pruned = prune_orphans(src_root, set(result["versions"]))
     write_manifest(manifest_path, result)
     return checked, skipped, pruned
-
-
-# Minimum log level for the CLI (matches logging.INFO; the int literal keeps
-# the tool free of an ``import logging`` per the project's structlog-only rule).
-_INFO_LEVEL = 20
-
-
-def _configure_logging() -> None:
-    """Render human-readable diagnostics to stderr (see gen_platform_versions)."""
-    structlog.configure(
-        processors=[
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.add_log_level,
-            structlog.dev.ConsoleRenderer(colors=False),
-        ],
-        wrapper_class=structlog.make_filtering_bound_logger(_INFO_LEVEL),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
-    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -406,7 +384,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     export, or matched-ref failure), ``2`` (invalid
     platform-versions.toml).
     """
-    _configure_logging()
+    configure_cli_logging()
     parser = argparse.ArgumentParser(
         prog="checkout_versioned_docs",
         description="Place src/<ver>/ snapshots from local revisions (hg working copy or git mirror clone).",
@@ -431,10 +409,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.versions, args.src, args.repo, args.matched
         )
     except ValueError as exc:
-        log.error("versions-invalid", path=str(args.versions), error=str(exc))
+        log.exception("versions-invalid", path=str(args.versions), error=str(exc))
         return 2
     except VcsError as exc:
-        log.error("checkout-failed", error=str(exc))
+        log.exception("checkout-failed", error=str(exc))
         return 1
 
     log.info("checkout-done", checked=checked, skipped=skipped, pruned=pruned)

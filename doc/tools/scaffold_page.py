@@ -32,15 +32,14 @@ from __future__ import annotations
 
 import argparse
 import re
-import sys
+import tomllib
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
-import tomllib
 
-from tools.gen_platform_versions import DOC_ROOT
+from tools._cli import DOC_ROOT, configure_cli_logging
 
 log = structlog.get_logger()
 
@@ -136,9 +135,7 @@ def parse_nav_groups(lines: list[str]) -> dict[str, list[NavEntry]]:
             "component pages are navigated through it"
         )
         raise ScaffoldError(msg)
-    section_indent = len(lines[section_start]) - len(
-        lines[section_start].lstrip()
-    )
+    section_indent = len(lines[section_start]) - len(lines[section_start].lstrip())
 
     groups: dict[str, list[NavEntry]] = {}
     current: list[NavEntry] | None = None
@@ -203,9 +200,7 @@ def write_nav(doc_root: Path, lines: list[str]) -> None:
     (doc_root / NAV_NAME).write_text(text)
 
 
-def insert_nav_entry(
-    lines: list[str], name: str, title: str, group: str
-) -> None:
+def insert_nav_entry(lines: list[str], name: str, title: str, group: str) -> None:
     """Insert ``{ "Title" = "components/<name>.md" }`` alphabetically.
 
     Sorting is case-insensitive over the nav labels. The new line
@@ -216,10 +211,7 @@ def insert_nav_entry(
     groups = parse_nav_groups(lines)
     if group not in groups:
         known = ", ".join(groups)
-        msg = (
-            f"unknown {NAV_SECTION} nav group {group!r} -- available "
-            f"groups: {known}"
-        )
+        msg = f"unknown {NAV_SECTION} nav group {group!r} -- available groups: {known}"
         raise ScaffoldError(msg)
     page_rel = f"components/{name}.md"
     for entries in groups.values():
@@ -257,9 +249,7 @@ def insert_nav_entry(
         if last.compressed:
             old = lines[last.lineno]
             closing = old[old.index("} ] ") + 2 :]  # `` ] },`` tail
-            lines[last.lineno] = (
-                f'{last.indent}{{ "{last.label}" = "{last.page}" }},'
-            )
+            lines[last.lineno] = f'{last.indent}{{ "{last.label}" = "{last.page}" }},'
             lines.insert(
                 last.lineno + 1,
                 f'{last.indent}{{ "{title}" = "{page_rel}" }} {closing}',
@@ -339,10 +329,7 @@ def scaffold(
     page_rel = COMPONENTS_SUBTREE / f"{name}.md"
     page = doc_root / page_rel
     if page.exists():
-        msg = (
-            f"page exists already: {page_rel.as_posix()} -- remove or "
-            "edit it instead"
-        )
+        msg = f"page exists already: {page_rel.as_posix()} -- remove or edit it instead"
         raise ScaffoldError(msg)
 
     lines = read_nav(doc_root)
@@ -405,24 +392,6 @@ def remove_page(name: str, doc_root: Path = DOC_ROOT) -> Path:
     return page
 
 
-# Minimum log level for the CLI (matches logging.INFO; the int literal keeps
-# the tool free of an ``import logging`` per the project's structlog-only rule).
-_INFO_LEVEL = 20
-
-
-def _configure_logging() -> None:
-    """Render human-readable diagnostics to stderr (see gen_platform_versions)."""
-    structlog.configure(
-        processors=[
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.add_log_level,
-            structlog.dev.ConsoleRenderer(colors=False),
-        ],
-        wrapper_class=structlog.make_filtering_bound_logger(_INFO_LEVEL),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
-    )
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry: ``python -m tools.scaffold_page <name> [--remove]``.
 
@@ -430,7 +399,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     problem, with the reason on stderr), ``2`` (usage error, via
     argparse).
     """
-    _configure_logging()
+    configure_cli_logging()
     parser = argparse.ArgumentParser(
         prog="scaffold_page",
         description=(
@@ -439,9 +408,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "tombstone and mark its nav label (removed)."
         ),
     )
-    parser.add_argument(
-        "name", help="component slug (file name under src/components/)"
-    )
+    parser.add_argument("name", help="component slug (file name under src/components/)")
     parser.add_argument(
         "--remove",
         action="store_true",
@@ -481,7 +448,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 doc_root=args.doc_root,
             )
     except ScaffoldError as exc:
-        log.error("scaffold-page-failed", name=args.name, error=str(exc))
+        log.exception("scaffold-page-failed", name=args.name, error=str(exc))
         return 1
     return 0
 

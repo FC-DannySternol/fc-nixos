@@ -22,11 +22,12 @@ that design:
 from __future__ import annotations
 
 import re
+import tomllib
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-import tomllib
+
 from tests.helpers import DOC_ROOT as DOC
 
 SRC = DOC / "src"

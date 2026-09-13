@@ -1,4 +1,4 @@
-.PHONY: all html serve clean test
+.PHONY: all html serve clean test lint typecheck check
 
 all: checkout-versioned-docs gen-platform-versions html
 
@@ -29,3 +29,14 @@ clean:
 # creates/syncs doc/.venv from pyproject.toml + uv.lock first.
 test:
 	uv run pytest tests
+
+# Dev-only quality gates (same uv venv as test): ruff lint and the ty
+# type checker over tools/ and tests/.
+lint:
+	uv run ruff check tools tests
+
+typecheck:
+	uv run ty check tools tests
+
+# Full quality gate: lint + types + tests (what CI enforces).
+check: lint typecheck test

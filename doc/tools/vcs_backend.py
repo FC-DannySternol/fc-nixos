@@ -86,11 +86,14 @@ class ReadFileError(VcsError):
     """A file could not be read at a revision (other than being absent)."""
 
 
-def _run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    """One captured VCS subprocess -- never checked, never silent."""
-    return subprocess.run(
-        argv, cwd=cwd, capture_output=True, text=True, check=False
-    )
+def run_vcs(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    """One captured VCS subprocess -- never checked, never silent.
+
+    The seam's single subprocess primitive: both backends and the
+    repo-reading tools route every hg/git invocation through it, so
+    capture and error semantics stay identical everywhere.
+    """
+    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,7 +113,7 @@ class HgBackend:
         remediation -- the caller must surface it, the user must pull.
         This backend never touches the network.
         """
-        proc = _run(["hg", "log", "-r", rev, "-T", "{node}"], self.repo)
+        proc = run_vcs(["hg", "log", "-r", rev, "-T", "{node}"], self.repo)
         if proc.returncode != 0:
             msg = (
                 f"cannot resolve rev {rev!r} locally "
@@ -126,7 +129,7 @@ class HgBackend:
         ``hg files`` with an explicit ``path:`` kind; empty output
         means the tree does not exist at *ref*.
         """
-        proc = _run(["hg", "files", "-r", ref, f"path:{path}"], self.repo)
+        proc = run_vcs(["hg", "files", "-r", ref, f"path:{path}"], self.repo)
         return proc.returncode == 0 and bool(proc.stdout.strip())
 
     def read_file(self, ref: str, path: str) -> str | None:
@@ -136,7 +139,7 @@ class HgBackend:
         rev`` diagnostic and maps to ``None``; anything else (unknown
         revision, ...) is a loud :class:`ReadFileError`.
         """
-        proc = _run(["hg", "cat", "-r", ref, path], self.repo)
+        proc = run_vcs(["hg", "cat", "-r", ref, path], self.repo)
         if proc.returncode == 0:
             return proc.stdout
         if "no such file in rev" in proc.stderr:
@@ -153,22 +156,18 @@ class HgBackend:
         """
         path = subtree.as_posix()
         with tempfile.TemporaryDirectory() as tmp:
-            proc = _run(
+            proc = run_vcs(
                 ["hg", "archive", "-r", ref, "-I", f"{path}/**", tmp],
                 self.repo,
             )
             if proc.returncode != 0:
                 msg = (
-                    f"hg archive failed for {ref[:12]} ({path}): "
-                    f"{proc.stderr.strip()}"
+                    f"hg archive failed for {ref[:12]} ({path}): {proc.stderr.strip()}"
                 )
                 raise ExportError(msg)
             exported = Path(tmp) / subtree
             if not exported.is_dir():
-                msg = (
-                    f"revision {ref[:12]} has no {path} tree -- "
-                    "nothing to place"
-                )
+                msg = f"revision {ref[:12]} has no {path} tree -- nothing to place"
                 raise ExportError(msg)
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(exported), str(dest))
@@ -194,7 +193,7 @@ class GitBackend:
         needs ``fetch-depth: 0`` to carry ALL mirror branches.
         """
         qualified = f"refs/remotes/origin/{rev}"
-        proc = _run(
+        proc = run_vcs(
             [
                 "git",
                 "rev-parse",
@@ -222,7 +221,7 @@ class GitBackend:
         ``git ls-tree`` with a trailing slash lists the tree's
         contents; empty output means the tree does not exist at *ref*.
         """
-        proc = _run(["git", "ls-tree", ref, "--", f"{path}/"], self.repo)
+        proc = run_vcs(["git", "ls-tree", ref, "--", f"{path}/"], self.repo)
         return proc.returncode == 0 and bool(proc.stdout.strip())
 
     def read_file(self, ref: str, path: str) -> str | None:
@@ -234,7 +233,7 @@ class GitBackend:
         blob-less partial clone a missing blob triggers a promisor
         fetch (network) before this returns.
         """
-        proc = _run(["git", "--no-pager", "show", f"{ref}:{path}"], self.repo)
+        proc = run_vcs(["git", "--no-pager", "show", f"{ref}:{path}"], self.repo)
         if proc.returncode == 0:
             return proc.stdout
         stderr = proc.stderr.strip()
@@ -285,10 +284,7 @@ class GitBackend:
                 archive_error = archive.stderr.read().strip()
                 archive.stderr.close()
             if archive.wait() != 0:
-                msg = (
-                    f"git archive failed for {ref[:12]} ({path}): "
-                    f"{archive_error}"
-                )
+                msg = f"git archive failed for {ref[:12]} ({path}): {archive_error}"
                 raise ExportError(msg)
             if extract.returncode != 0:
                 msg = (
@@ -297,10 +293,7 @@ class GitBackend:
                 )
                 raise ExportError(msg)
             if not any(extract_dir.iterdir()):
-                msg = (
-                    f"revision {ref[:12]} has no {path} tree -- "
-                    "nothing to place"
-                )
+                msg = f"revision {ref[:12]} has no {path} tree -- nothing to place"
                 raise ExportError(msg)
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(extract_dir), str(dest))
@@ -336,7 +329,7 @@ def active_bookmark(repo: Path) -> str:
     (summary) reports as active: the bookmark the working dir sits on
     AND advances on commit. Updating to a bare rev deactivates it.
     """
-    proc = _run(["hg", "log", "-r", ".", "-T", "{activebookmark}"], repo)
+    proc = run_vcs(["hg", "log", "-r", ".", "-T", "{activebookmark}"], repo)
     if proc.returncode != 0:
         msg = (
             f"cannot read the active bookmark of {repo} "
@@ -381,7 +374,7 @@ def git_active_branch(repo: Path) -> str:
     The git counterpart of :func:`active_bookmark`: it names the
     manual a git clone is positioned on.
     """
-    proc = _run(["git", "branch", "--show-current"], repo)
+    proc = run_vcs(["git", "branch", "--show-current"], repo)
     if proc.returncode != 0:
         msg = (
             f"cannot read the checked-out branch of {repo} "

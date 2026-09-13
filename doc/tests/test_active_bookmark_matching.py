@@ -16,7 +16,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from tests.helpers import TOML_FC as TOML, hg, put
+
+from tests.helpers import TOML_FC as TOML
+from tests.helpers import hg, put
 from tools import checkout_versioned_docs as cot
 from tools import gen_platform_versions as gpv
 from tools import vcs_backend as vcs

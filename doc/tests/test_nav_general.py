@@ -11,10 +11,10 @@ Pins the three cooperating artifacts:
 """
 
 import re
-from pathlib import Path
-
 import tomllib
+
 from pytest_readable import readable
+
 from tests.helpers import DOC_ROOT as DOC
 
 SECURITY_PAGES = [

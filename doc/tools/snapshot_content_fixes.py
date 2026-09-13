@@ -401,8 +401,10 @@ FILE_FIXES: dict[str, list[tuple[str, str]]] = {
         # subtree -- one ../ higher, into the main manual.
         (
             "[SRV interface](../../infrastructure/networking/networking.md#logical-networks)",
-            "[SRV interface]"
-            "(../../../infrastructure/networking/networking.md#logical-networks)",
+            (
+                "[SRV interface]"
+                "(../../../infrastructure/networking/networking.md#logical-networks)"
+            ),
         ),
     ],
     # same dead ferretdb URL as the global pair, but this page sits in
@@ -443,22 +445,26 @@ FILE_FIXES: dict[str, list[tuple[str, str]]] = {
     # missing -- fixed-branch content is left untouched.
     "platform/users/index.md": [
         (
-            "## Specific software components (roles) { #nixos-components }\n"
-            "\n"
-            "\n"
-            "[nixos]: https://nixos.org",
-            "## Specific software components (roles) { #nixos-components }\n"
-            "\n"
-            "## Permissions { #permissions }\n"
-            "\n"
-            "Permissions control user access to VMs and services. "
-            "They are managed centrally via\n"
-            "[my.flyingcircus.io](https://my.flyingcircus.io) and provisioned to all relevant\n"
-            "systems, including proper removal of access rights. "
-            "See also the permission table\n"
-            "in the platform documentation.\n"
-            "\n"
-            "[nixos]: https://nixos.org",
+            (
+                "## Specific software components (roles) { #nixos-components }\n"
+                "\n"
+                "\n"
+                "[nixos]: https://nixos.org"
+            ),
+            (
+                "## Specific software components (roles) { #nixos-components }\n"
+                "\n"
+                "## Permissions { #permissions }\n"
+                "\n"
+                "Permissions control user access to VMs and services. "
+                "They are managed centrally via\n"
+                "[my.flyingcircus.io](https://my.flyingcircus.io) and provisioned to all relevant\n"
+                "systems, including proper removal of access rights. "
+                "See also the permission table\n"
+                "in the platform documentation.\n"
+                "\n"
+                "[nixos]: https://nixos.org"
+            ),
         ),
     ],
     # slimming relocations: the 26.05/25.11 branches dropped their
@@ -477,8 +483,10 @@ FILE_FIXES: dict[str, list[tuple[str, str]]] = {
     "platform/api/types.md": [
         (
             "See <project:../../infrastructure/backup.md> for possible values.",
-            "See [the backup documentation]"
-            "(../../../infrastructure/backup.md) for possible values.",
+            (
+                "See [the backup documentation]"
+                "(../../../infrastructure/backup.md) for possible values."
+            ),
         ),
     ],
     "platform/logging.md": [
@@ -497,9 +505,7 @@ FILE_FIXES: dict[str, list[tuple[str, str]]] = {
 
 # Old fetch-era sunsetting banner (dead platform-releases link inside):
 # a bare '!!! warning' line followed by the indented one-liner.
-OLD_BANNER_RE = re.compile(
-    r"!!! warning\n    This is a sunsetting version[^\n]*\n\n?"
-)
+OLD_BANNER_RE = re.compile(r"!!! warning\n    This is a sunsetting version[^\n]*\n\n?")
 
 
 def fix_text(text: str) -> tuple[str, int]:

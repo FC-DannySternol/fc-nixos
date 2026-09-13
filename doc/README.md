@@ -59,7 +59,12 @@ make    # checkout-versioned-docs -> gen-platform-versions -> html
 | `make gen-platform-versions` | Regenerates `src/_static/platform-versions.js` (switcher payload) from `platform-versions.toml` and the page inventory |
 | `make html` | Builds the static HTML into `_build/` |
 | `make test` | Runs the test suite in `tests/` (see [Tests](#tests)) |
+| `make lint` / `make typecheck` | Dev-only quality gates: ruff (lint) and ty (type check) over `tools/` and `tests/` |
+| `make check` | Full quality gate: `lint` + `typecheck` + `test` |
 | `make clean` | Removes `_build/`, the placed `src/<ver>/` trees, and the placement manifest |
+
+CI enforces `make check` -- the full gate of lint, type check, and
+tests -- on every push touching `doc/**`.
 
 Both tool targets accept `MATCHED=<rev>` to override the matched rev
 (see [Versioned documentation](#versioned-documentation)).

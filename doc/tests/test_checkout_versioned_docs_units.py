@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 from structlog.testing import capture_logs
+
 from tests.helpers import hg
 from tools.checkout_versioned_docs import (
     MANIFEST_NAME,

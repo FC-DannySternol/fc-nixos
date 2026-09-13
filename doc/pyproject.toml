@@ -26,7 +26,31 @@ packages = ["tools"]
 dev = [
     "pytest>=8",
     "pytest-readable",
+    "ruff>=0.16.7",
+    "ty>=0.0.80",
 ]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["B", "TRY", "BLE", "RUF"]
+# TRY003: long remediation messages in raise statements are house
+# doctrine -- the messages are the documentation.
+ignore = ["TRY003"]
+
+[tool.ruff.lint.per-file-ignores]
+# The quality-gate feature's contract test files are an untouchable
+# acceptance boundary (no edits while the gates are introduced): their
+# single-block import style (I001) and two unused imports (F401,
+# string-only "uses") stay frozen until those files change for their
+# own sake.
+"tests/test_checkout_versioned_docs.py" = ["I001"]
+"tests/test_gen_changes_index.py" = ["I001"]
+"tests/test_gen_platform_versions.py" = ["I001"]
+"tests/test_release_notes.py" = ["I001", "F401"]
+"tests/test_scaffold_page.py" = ["I001"]
+"tests/test_vcs_backend.py" = ["I001", "F401"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
