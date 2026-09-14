@@ -26,7 +26,8 @@ from pathlib import Path
 
 import pytest
 from pytest_readable import readable
-from tests.helpers import DOC_ROOT, REPO_ROOT
+
+from tests.helpers import DOC_ROOT
 from tools import gen_changes_index as gci
 from tools import release_notes as rn
 from tools.vcs_backend import VcsError

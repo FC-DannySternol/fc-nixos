@@ -11,5 +11,7 @@ generates and sunsets component pages. ``tools.release_notes`` renders
 per-release changelog pages (``src/changes/<year>/rNNN.md``) from the
 branch changelogs, the generated package diff and the working-tree
 changelog fragments -- the archive line and ``changes/index.md`` stay
-with ``tools.gen_changes_index``.
+with ``tools.gen_changes_index``; the component overview
+``components/index.md`` is ``tools.gen_components_index`` territory
+(refreshed automatically by ``tools.scaffold_page``).
 """

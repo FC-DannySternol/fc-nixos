@@ -2,7 +2,8 @@
 
 The counterpart of ``tools.gen_platform_versions.py``: the entry
 matched by :mod:`tools.vcs_backend` (the hg repo's ACTIVE bookmark
-locally, or the ``--matched`` ref in a git mirror clone) is the local
+locally, or in a git mirror clone the ``--matched`` ref /
+``GITHUB_REF_NAME`` / checked-out branch) is the local
 manual -- never checked out. Every OTHER entry in
 ``platform-versions.toml`` is resolved STRICTLY locally (hg:
 ``hg log -r <rev>``, git: ``git rev-parse refs/remotes/origin/<rev>``
@@ -52,7 +53,6 @@ import hashlib
 import json
 import re
 import shutil
-import sys
 import tempfile
 from collections.abc import Sequence
 from pathlib import Path
@@ -60,9 +60,8 @@ from pathlib import Path
 import structlog
 
 from tools import snapshot_content_fixes
+from tools._cli import DOC_ROOT, REPO_ROOT, configure_cli_logging
 from tools.gen_platform_versions import (
-    DOC_ROOT,
-    REPO_ROOT,
     VersionEntry,
     load_versions,
 )
@@ -334,7 +333,8 @@ def run_checkout(
     Shared by ``main`` and tests -- everything except argparse and log
     configuration lives here. The entry selected by the VCS seam
     (:func:`tools.vcs_backend.matched_entry`: ACTIVE bookmark for hg,
-    ``matched_ref``/``GITHUB_REF_NAME`` for git) IS the local manual
+    ``matched_ref``/``GITHUB_REF_NAME``/checked-out branch for git)
+    IS the local manual
     and is never checked out; ALL other entries become snapshots, a
     non-matched ``[stable]`` included (from its namespaced tree, like
     a sunsetting version). Every placement is made link-clean (content
@@ -368,33 +368,13 @@ def run_checkout(
         log.info("content-fixes-applied", ver=entry.ver, pages=fixed)
         if entry.status != "prerelease":
             ensure_version_index(tree, entry.ver)
-            process_snapshot(
-                tree, entry.ver, entry.status, manual.ver, src_root
-            )
+            process_snapshot(tree, entry.ver, entry.status, manual.ver, src_root)
         result["versions"][entry.ver] = {"ref": ref}
         checked += 1
 
     pruned = prune_orphans(src_root, set(result["versions"]))
     write_manifest(manifest_path, result)
     return checked, skipped, pruned
-
-
-# Minimum log level for the CLI (matches logging.INFO; the int literal keeps
-# the tool free of an ``import logging`` per the project's structlog-only rule).
-_INFO_LEVEL = 20
-
-
-def _configure_logging() -> None:
-    """Render human-readable diagnostics to stderr (see gen_platform_versions)."""
-    structlog.configure(
-        processors=[
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.add_log_level,
-            structlog.dev.ConsoleRenderer(colors=False),
-        ],
-        wrapper_class=structlog.make_filtering_bound_logger(_INFO_LEVEL),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
-    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -404,7 +384,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     export, or matched-ref failure), ``2`` (invalid
     platform-versions.toml).
     """
-    _configure_logging()
+    configure_cli_logging()
     parser = argparse.ArgumentParser(
         prog="checkout_versioned_docs",
         description="Place src/<ver>/ snapshots from local revisions (hg working copy or git mirror clone).",
@@ -419,7 +399,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="REV",
         default=None,
         help="Rev whose entry IS the manual at '/' (default: the ACTIVE "
-        "bookmark of an hg repo; in git mode GITHUB_REF_NAME)",
+        "bookmark of an hg repo; in git mode GITHUB_REF_NAME, then "
+        "the clone's checked-out branch)",
     )
     args = parser.parse_args(argv)
 
@@ -428,10 +409,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.versions, args.src, args.repo, args.matched
         )
     except ValueError as exc:
-        log.error("versions-invalid", path=str(args.versions), error=str(exc))
+        log.exception("versions-invalid", path=str(args.versions), error=str(exc))
         return 2
     except VcsError as exc:
-        log.error("checkout-failed", error=str(exc))
+        log.exception("checkout-failed", error=str(exc))
         return 1
 
     log.info("checkout-done", checked=checked, skipped=skipped, pruned=pruned)

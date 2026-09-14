@@ -2,6 +2,8 @@
 global_sync_id: "v1"
 ---
 
+% CHANGES TO THESE DOCUMENTS NEED TO BE COMMUNICATED TO THE OSF! Tell cz!
+
 # Support { #support-details }
 
 We are happy to assist you with any issues that you may have when using our
@@ -114,4 +116,4 @@ Both alice and bob should share the same terminal now. For further details, plea
 
 ### Limitations
 !!! warning "Limitations"
-	`screen` cannot be run inside `sudo` sessions. So start screen first and then sudo inside the screen session.>>>>>>> merge rev
+	`screen` cannot be run inside `sudo` sessions. So start screen first and then sudo inside the screen session.

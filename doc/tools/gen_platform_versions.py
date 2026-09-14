@@ -9,8 +9,8 @@ Two inputs, both on disk and strictly local:
   ``[stable]`` -- is placed as a snapshot under ``src/<ver>/`` by
   ``tools/checkout_versioned_docs.py`` (each builds at ``/<ver>/``).
   Matching is backend-dependent: an hg repo contributes its ACTIVE
-  bookmark, a git mirror clone the ``--matched`` flag or
-  ``GITHUB_REF_NAME``.
+  bookmark, a git mirror clone the ``--matched`` flag,
+  ``GITHUB_REF_NAME``, or its checked-out branch.
 
 * the file trees -- the local ``src/`` tree plus every ``src/<ver>/``
   snapshot. A page is identified by its URL-shaped page-id
@@ -46,24 +46,17 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
+import tomllib
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
-import tomllib
 
+from tools._cli import DOC_ROOT, REPO_ROOT, configure_cli_logging
 from tools.vcs_backend import VcsError, matched_entry
 
 log = structlog.get_logger()
-
-# doc/ root -- defaults resolve relative to the module, not the cwd, so
-# the tool works from any directory (the Makefile runs it from doc/).
-DOC_ROOT = Path(__file__).resolve().parents[1]
-
-# The hg repository that carries the version bookmarks: doc/'s parent.
-REPO_ROOT = DOC_ROOT.parent
 
 # Version format everywhere: two digits, dot, two digits (``26.05``).
 VERSION_RE = re.compile(r"\d{2}\.\d{2}")
@@ -190,9 +183,7 @@ def scan_page_ids(tree: Path, *, exclude_snapshots: bool = False) -> set[str]:
     return ids
 
 
-def build_payload(
-    versions: VersionSet, matched: VersionEntry, src_root: Path
-) -> dict:
+def build_payload(versions: VersionSet, matched: VersionEntry, src_root: Path) -> dict:
     """Build the master-centric switcher payload.
 
     ``matched`` (the entry selected by the VCS seam, see
@@ -310,30 +301,6 @@ def render_js(payload: dict) -> str:
     return f"{GENERATED_HEADER}\nwindow.PLATFORM_VERSIONS = {body};\n"
 
 
-# Minimum log level for the CLI (matches logging.INFO; the int literal keeps
-# the tool free of an ``import logging`` per the project's structlog-only rule).
-_INFO_LEVEL = 20
-
-
-def _configure_logging() -> None:
-    """Render human-readable diagnostics to stderr.
-
-    stderr, resolved at call time: ``make`` surfaces a failing
-    prerequisite's stderr verbatim while stdout stays clean for
-    zensical -- and pytest's capsys captures it (capture_logs around
-    ``main()`` does NOT work: this reconfiguration clobbers it).
-    """
-    structlog.configure(
-        processors=[
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.add_log_level,
-            structlog.dev.ConsoleRenderer(colors=False),
-        ],
-        wrapper_class=structlog.make_filtering_bound_logger(_INFO_LEVEL),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
-    )
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry: ``python -m tools.gen_platform_versions``.
 
@@ -341,7 +308,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     (unreadable src/, or an unresolved matched ref), ``2`` (invalid
     platform-versions.toml).
     """
-    _configure_logging()
+    configure_cli_logging()
     parser = argparse.ArgumentParser(
         prog="gen_platform_versions",
         description="Generate src/_static/platform-versions.js from platform-versions.toml and the src/ file trees.",
@@ -356,7 +323,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="REV",
         default=None,
         help="Rev whose entry IS the manual at '/' (default: the ACTIVE "
-        "bookmark of an hg repo; in git mode GITHUB_REF_NAME)",
+        "bookmark of an hg repo; in git mode GITHUB_REF_NAME, then "
+        "the clone's checked-out branch)",
     )
     parser.add_argument(
         "--out",
@@ -368,7 +336,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         versions = load_versions(args.versions)
     except ValueError as exc:
-        log.error("versions-invalid", path=str(args.versions), error=str(exc))
+        log.exception("versions-invalid", path=str(args.versions), error=str(exc))
         return 2
 
     if not args.src.is_dir():
@@ -378,7 +346,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         matched = matched_entry(versions, args.repo, args.matched)
     except VcsError as exc:
-        log.error(
+        log.exception(
             "matched-ref-unresolved",
             repo=str(args.repo),
             error=str(exc),

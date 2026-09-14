@@ -125,6 +125,7 @@ nav = [
       ] }
   ] },
   { "Components" = [
+      { "Overview" = "components/index.md" },
       { "Databases" = [
           { "FerretDB" = "components/ferretdb.md" },
           { "MariaDB" = "components/mariadb.md" },
@@ -255,3 +256,4 @@ check_paths = true
 [project.markdown_extensions.zensical.extensions.glightbox]
 auto_caption = true
 skip_classes = ["logo"]
+

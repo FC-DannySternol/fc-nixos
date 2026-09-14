@@ -32,6 +32,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+
 from tests.helpers import DOC_ROOT as DOC
 
 SRC = DOC / "src"

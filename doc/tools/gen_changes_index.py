@@ -35,18 +35,15 @@ from __future__ import annotations
 
 import argparse
 import re
-import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
 
-log = structlog.get_logger()
+from tools._cli import DOC_ROOT, configure_cli_logging
 
-# doc/ root -- defaults resolve relative to the module, not the cwd,
-# so the tool works from any directory (sister tools do the same).
-DOC_ROOT = Path(__file__).resolve().parents[1]
+log = structlog.get_logger()
 
 # Pinned line shapes of a release page.
 DATE_RE = re.compile(r"^Publish Date: '(\d{4}-\d{2}-\d{2})'$", re.MULTILINE)
@@ -149,9 +146,7 @@ def scan_releases(changes: Path) -> list[tuple[Path, Release]]:
     return releases
 
 
-def invalid_pages(
-    changes: Path, releases: Sequence[tuple[Path, Release]]
-) -> list[str]:
+def invalid_pages(changes: Path, releases: Sequence[tuple[Path, Release]]) -> list[str]:
     """Changes/-relative paths of non-marker pages lacking date or versions.
 
     Marker pages are exempt by design; everything else must carry a
@@ -198,46 +193,15 @@ def place_archive_link(page: Path) -> bool:
     former latest pages keep their lines untouched.
     """
     lines = page.read_text().splitlines()
-    h1 = next(
-        (i for i, line in enumerate(lines) if line.startswith("# ")), None
-    )
+    h1 = next((i for i, line in enumerate(lines) if line.startswith("# ")), None)
     if h1 is None:
         msg = f"no H1 heading in {page}"
         raise ValueError(msg)
-    if (
-        h1 + 2 < len(lines)
-        and lines[h1 + 1] == ""
-        and lines[h1 + 2] == ARCHIVE_LINE
-    ):
+    if h1 + 2 < len(lines) and lines[h1 + 1] == "" and lines[h1 + 2] == ARCHIVE_LINE:
         return False
     lines[h1 + 1 : h1 + 1] = ["", ARCHIVE_LINE]
     page.write_text("\n".join(lines) + "\n")
     return True
-
-
-# Minimum log level for the CLI (matches logging.INFO; the int
-# literal keeps the tool free of an ``import logging`` per the
-# project's structlog-only rule).
-_INFO_LEVEL = 20
-
-
-def _configure_logging() -> None:
-    """Render human-readable diagnostics to stderr.
-
-    stderr, resolved at call time: ``make`` surfaces a failing
-    prerequisite's stderr verbatim while stdout stays clean, and
-    pytest's capsys captures it (capture_logs around ``main()``
-    does NOT work: this reconfiguration clobbers it).
-    """
-    structlog.configure(
-        processors=[
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.add_log_level,
-            structlog.dev.ConsoleRenderer(colors=False),
-        ],
-        wrapper_class=structlog.make_filtering_bound_logger(_INFO_LEVEL),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
-    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -247,7 +211,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     (missing ``changes/`` tree, no release pages at all, or
     non-marker release pages lacking date or versions).
     """
-    _configure_logging()
+    configure_cli_logging()
     parser = argparse.ArgumentParser(
         prog="gen_changes_index",
         description=(

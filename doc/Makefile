@@ -1,12 +1,16 @@
-.PHONY: all html serve clean test
+.PHONY: all html serve clean test lint typecheck check
 
 all: checkout-versioned-docs gen-platform-versions html
 
+# Explicit matched-rev override for the tools (empty: auto-detect --
+# hg ACTIVE bookmark; git GITHUB_REF_NAME, then checked-out branch).
+TOOL_ARGS := $(if $(MATCHED),--matched $(MATCHED),)
+
 gen-platform-versions: 
-	./appenv python -m tools.gen_platform_versions
+	./appenv python -m tools.gen_platform_versions $(TOOL_ARGS)
 
 checkout-versioned-docs: 
-	./appenv python -m tools.checkout_versioned_docs
+	./appenv python -m tools.checkout_versioned_docs $(TOOL_ARGS)
 
 html:
 	./zensical build
@@ -25,3 +29,14 @@ clean:
 # creates/syncs doc/.venv from pyproject.toml + uv.lock first.
 test:
 	uv run pytest tests
+
+# Dev-only quality gates (same uv venv as test): ruff lint and the ty
+# type checker over tools/ and tests/.
+lint:
+	uv run ruff check tools tests
+
+typecheck:
+	uv run ty check tools tests
+
+# Full quality gate: lint + types + tests (what CI enforces).
+check: lint typecheck test

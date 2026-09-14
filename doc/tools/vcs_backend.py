@@ -19,15 +19,17 @@ reports it. Revs resolve strictly locally (``hg log``, no pull), the
 namespaced check asks ``hg files`` directly, and export is
 ``hg archive`` into a staging dir.
 
-git is the CI backend: GitHub mirror branches. The TOML ``rev`` IS the
-branch name, resolved as the fully-qualified
-``refs/remotes/origin/<branch>`` of a full clone (the workflow's
-``fetch-depth: 0`` -- a shallow clone only carries the built branch),
-checked via ``git ls-tree`` and exported via
+git is the mirror backend (CI or a local clone alike): GitHub mirror
+branches. The TOML ``rev`` IS the branch name, resolved as the
+fully-qualified ``refs/remotes/origin/<branch>`` of a full clone
+(the workflow's ``fetch-depth: 0`` -- a shallow clone only carries
+the built branch), checked via ``git ls-tree`` and exported via
 ``git archive <sha> <path> | tar -x --strip-components`` with the
-archive prefix stripped. In git mode the matched ref is REQUIRED: the
-``--matched`` flag wins over ``GITHUB_REF_NAME`` (the ref GitHub
-Actions built); neither set fails loudly.
+archive prefix stripped. In git mode the matched ref comes from
+``--matched``, falling back to ``GITHUB_REF_NAME`` (the ref GitHub
+Actions built) and then to the clone's CHECKED-OUT branch (the git
+counterpart of the active bookmark); nothing identifying a declared
+rev fails loudly.
 
 Both backends serve the same pipeline: identical payloads and
 snapshot trees from content-identical repositories.
@@ -60,8 +62,8 @@ class NoVcsBackendError(VcsError):
 
 
 class MatchedRefError(VcsError):
-    """The matched ref (``--matched``/``GITHUB_REF_NAME``) is missing
-    or unknown to the TOML."""
+    """The matched ref (``--matched``/``GITHUB_REF_NAME``/checked-out
+    branch) is missing or unknown to the TOML."""
 
 
 class ActiveBookmarkError(VcsError):
@@ -84,11 +86,14 @@ class ReadFileError(VcsError):
     """A file could not be read at a revision (other than being absent)."""
 
 
-def _run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    """One captured VCS subprocess -- never checked, never silent."""
-    return subprocess.run(
-        argv, cwd=cwd, capture_output=True, text=True, check=False
-    )
+def run_vcs(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    """One captured VCS subprocess -- never checked, never silent.
+
+    The seam's single subprocess primitive: both backends and the
+    repo-reading tools route every hg/git invocation through it, so
+    capture and error semantics stay identical everywhere.
+    """
+    return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,7 +113,7 @@ class HgBackend:
         remediation -- the caller must surface it, the user must pull.
         This backend never touches the network.
         """
-        proc = _run(["hg", "log", "-r", rev, "-T", "{node}"], self.repo)
+        proc = run_vcs(["hg", "log", "-r", rev, "-T", "{node}"], self.repo)
         if proc.returncode != 0:
             msg = (
                 f"cannot resolve rev {rev!r} locally "
@@ -124,7 +129,7 @@ class HgBackend:
         ``hg files`` with an explicit ``path:`` kind; empty output
         means the tree does not exist at *ref*.
         """
-        proc = _run(["hg", "files", "-r", ref, f"path:{path}"], self.repo)
+        proc = run_vcs(["hg", "files", "-r", ref, f"path:{path}"], self.repo)
         return proc.returncode == 0 and bool(proc.stdout.strip())
 
     def read_file(self, ref: str, path: str) -> str | None:
@@ -134,7 +139,7 @@ class HgBackend:
         rev`` diagnostic and maps to ``None``; anything else (unknown
         revision, ...) is a loud :class:`ReadFileError`.
         """
-        proc = _run(["hg", "cat", "-r", ref, path], self.repo)
+        proc = run_vcs(["hg", "cat", "-r", ref, path], self.repo)
         if proc.returncode == 0:
             return proc.stdout
         if "no such file in rev" in proc.stderr:
@@ -151,22 +156,18 @@ class HgBackend:
         """
         path = subtree.as_posix()
         with tempfile.TemporaryDirectory() as tmp:
-            proc = _run(
+            proc = run_vcs(
                 ["hg", "archive", "-r", ref, "-I", f"{path}/**", tmp],
                 self.repo,
             )
             if proc.returncode != 0:
                 msg = (
-                    f"hg archive failed for {ref[:12]} ({path}): "
-                    f"{proc.stderr.strip()}"
+                    f"hg archive failed for {ref[:12]} ({path}): {proc.stderr.strip()}"
                 )
                 raise ExportError(msg)
             exported = Path(tmp) / subtree
             if not exported.is_dir():
-                msg = (
-                    f"revision {ref[:12]} has no {path} tree -- "
-                    "nothing to place"
-                )
+                msg = f"revision {ref[:12]} has no {path} tree -- nothing to place"
                 raise ExportError(msg)
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(exported), str(dest))
@@ -192,7 +193,7 @@ class GitBackend:
         needs ``fetch-depth: 0`` to carry ALL mirror branches.
         """
         qualified = f"refs/remotes/origin/{rev}"
-        proc = _run(
+        proc = run_vcs(
             [
                 "git",
                 "rev-parse",
@@ -220,7 +221,7 @@ class GitBackend:
         ``git ls-tree`` with a trailing slash lists the tree's
         contents; empty output means the tree does not exist at *ref*.
         """
-        proc = _run(["git", "ls-tree", ref, "--", f"{path}/"], self.repo)
+        proc = run_vcs(["git", "ls-tree", ref, "--", f"{path}/"], self.repo)
         return proc.returncode == 0 and bool(proc.stdout.strip())
 
     def read_file(self, ref: str, path: str) -> str | None:
@@ -232,7 +233,7 @@ class GitBackend:
         blob-less partial clone a missing blob triggers a promisor
         fetch (network) before this returns.
         """
-        proc = _run(["git", "--no-pager", "show", f"{ref}:{path}"], self.repo)
+        proc = run_vcs(["git", "--no-pager", "show", f"{ref}:{path}"], self.repo)
         if proc.returncode == 0:
             return proc.stdout
         stderr = proc.stderr.strip()
@@ -283,10 +284,7 @@ class GitBackend:
                 archive_error = archive.stderr.read().strip()
                 archive.stderr.close()
             if archive.wait() != 0:
-                msg = (
-                    f"git archive failed for {ref[:12]} ({path}): "
-                    f"{archive_error}"
-                )
+                msg = f"git archive failed for {ref[:12]} ({path}): {archive_error}"
                 raise ExportError(msg)
             if extract.returncode != 0:
                 msg = (
@@ -295,10 +293,7 @@ class GitBackend:
                 )
                 raise ExportError(msg)
             if not any(extract_dir.iterdir()):
-                msg = (
-                    f"revision {ref[:12]} has no {path} tree -- "
-                    "nothing to place"
-                )
+                msg = f"revision {ref[:12]} has no {path} tree -- nothing to place"
                 raise ExportError(msg)
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(extract_dir), str(dest))
@@ -334,7 +329,7 @@ def active_bookmark(repo: Path) -> str:
     (summary) reports as active: the bookmark the working dir sits on
     AND advances on commit. Updating to a bare rev deactivates it.
     """
-    proc = _run(["hg", "log", "-r", ".", "-T", "{activebookmark}"], repo)
+    proc = run_vcs(["hg", "log", "-r", ".", "-T", "{activebookmark}"], repo)
     if proc.returncode != 0:
         msg = (
             f"cannot read the active bookmark of {repo} "
@@ -372,6 +367,23 @@ def match_active(versions: VersionSet, repo: Path) -> VersionEntry:
     raise ActiveBookmarkError(msg)
 
 
+def git_active_branch(repo: Path) -> str:
+    """The clone's CHECKED-OUT branch name (``''`` when detached).
+
+    ``git branch --show-current`` prints nothing on a detached HEAD.
+    The git counterpart of :func:`active_bookmark`: it names the
+    manual a git clone is positioned on.
+    """
+    proc = run_vcs(["git", "branch", "--show-current"], repo)
+    if proc.returncode != 0:
+        msg = (
+            f"cannot read the checked-out branch of {repo} "
+            f"({proc.stderr.strip()}) -- is it a git clone?"
+        )
+        raise MatchedRefError(msg)
+    return proc.stdout.strip()
+
+
 def matched_entry(
     versions: VersionSet, repo: Path, matched: str | None
 ) -> VersionEntry:
@@ -381,8 +393,11 @@ def matched_entry(
     names the rev directly. Without it, an hg repo falls back to its
     ACTIVE bookmark (:func:`match_active`, the local semantics); a
     git repo falls back to ``GITHUB_REF_NAME`` (the ref GitHub
-    Actions built) and raises :class:`MatchedRefError` when neither
-    is set -- there is NO fallback to any TOML category.
+    Actions built) and then to its CHECKED-OUT branch
+    (:func:`git_active_branch`, the git counterpart of the bookmark).
+    When nothing identifies a declared rev: :class:`MatchedRefError`
+    -- there is NO fallback to any TOML category: guessing would
+    silently build the wrong manual at ``/``.
     """
     backend = detect_backend(repo)
     source = "--matched"
@@ -392,13 +407,22 @@ def matched_entry(
         source = "active-bookmark"
         entry = match_active(versions, repo)
     else:
-        source = "GITHUB_REF_NAME"
         rev = os.environ.get("GITHUB_REF_NAME", "").strip()
+        if rev:
+            source = "GITHUB_REF_NAME"
+        else:
+            source = "checked-out-branch"
+            rev = git_active_branch(repo)
         if not rev:
+            known = ", ".join(e.rev for e in versions.entries())
             msg = (
-                f"git backend at {repo} needs the matched mirror "
-                "branch: pass --matched <rev> or set GITHUB_REF_NAME "
-                "(the ref GitHub Actions built); there is no fallback"
+                f"no matched rev for the git backend at {repo} "
+                "(detached HEAD, no GITHUB_REF_NAME, no --matched) -- "
+                "the matched rev (a platform-versions.toml entry) "
+                'selects the manual built at "/": git checkout one of '
+                f"the known revs ({known}), or pass --matched <rev> "
+                "(the make targets take MATCHED=<rev>), or set "
+                "GITHUB_REF_NAME as CI does; there is no fallback"
             )
             raise MatchedRefError(msg)
         entry = _entry_by_rev(versions, rev, source, backend)

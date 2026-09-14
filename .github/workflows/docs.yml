@@ -1,8 +1,9 @@
 name: docs
 
 # The GitHub mirror build of the platform documentation: run the doc
-# test suite, build the manual via make in doc/, and upload the HTML
-# as an artifact. No deploy job -- publishing happens elsewhere.
+# quality gates (lint, type check, tests), build the manual via make
+# in doc/, and upload the HTML as an artifact. No deploy job --
+# publishing happens elsewhere.
 #
 # The checkout carries FULL history: the doc tools resolve the
 # platform-versions.toml revs as mirror branches
@@ -41,9 +42,9 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Run the doc test suite
+      - name: Run the doc quality gates (lint, types, tests)
         working-directory: doc
-        run: make test
+        run: make check
 
       - name: Build the documentation (switcher, snapshots, HTML)
         working-directory: doc

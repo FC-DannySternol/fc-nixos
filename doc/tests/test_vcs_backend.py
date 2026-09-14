@@ -5,7 +5,8 @@ fixtures; these tests pin the seam itself: backend auto-detection at
 the repo path, ref resolution per backend (with the exact remediation
 hints), the ``git ls-tree`` subtree check, prefix-stripped export on
 both backends, and the matched-entry selection order
-(``--matched`` > ACTIVE bookmark | ``GITHUB_REF_NAME`` > loud failure).
+(``--matched`` > ACTIVE bookmark | ``GITHUB_REF_NAME`` >
+checked-out branch > loud failure).
 """
 
 from __future__ import annotations
@@ -320,7 +321,9 @@ def test_matched_flag_works_on_git_too(
 def test_git_falls_back_to_github_ref_name(
     git_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """git mode without --matched reads GITHUB_REF_NAME."""
+    """git mode without --matched: GITHUB_REF_NAME beats the
+    checked-out branch (the clone sits on new-docs-master)."""
+    git(git_repo, "checkout", "-q", "new-docs-master")
     monkeypatch.setenv("GITHUB_REF_NAME", "new-docs-fc-25.11-production")
     vset = load_versions(versions_file(tmp_path))
     with capture_logs() as logs:
@@ -331,10 +334,51 @@ def test_git_falls_back_to_github_ref_name(
     assert event["ver"] == "25.11"
 
 
+def test_git_falls_back_to_the_checked_out_branch(
+    git_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """git mode, no --matched, no GITHUB_REF_NAME: the clone's
+    checked-out branch selects the manual (the hg-bookmark
+    semantics, zero knobs)."""
+    git(git_repo, "checkout", "-q", "new-docs-master")
+    monkeypatch.delenv("GITHUB_REF_NAME", raising=False)
+    vset = load_versions(versions_file(tmp_path))
+    with capture_logs() as logs:
+        matched = vcs.matched_entry(vset, git_repo, None)
+    assert matched.rev == "new-docs-master"
+    event = next(e for e in logs if e["event"] == "matched-ref")
+    assert event["backend"] == "git"
+    assert event["source"] == "checked-out-branch"
+    assert event["ver"] == "26.11"
+    assert event["status"] == "prerelease"
+
+
+def test_git_feature_branch_fails_loudly_with_known_revs(
+    git_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A checked-out branch unknown to the TOML: error names the
+    branch and lists the known revs."""
+    git(git_repo, "checkout", "-q", "-b", "feature-x")
+    monkeypatch.delenv("GITHUB_REF_NAME", raising=False)
+    vset = load_versions(versions_file(tmp_path))
+    with pytest.raises(vcs.MatchedRefError) as excinfo:
+        vcs.matched_entry(vset, git_repo, None)
+    msg = str(excinfo.value)
+    assert "feature-x" in msg
+    for rev in (
+        "new-docs-fc-26.05-production",
+        "new-docs-master",
+        "new-docs-fc-25.11-production",
+    ):
+        assert rev in msg
+
+
 def test_git_without_any_matched_ref_fails_loudly(
     git_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """git mode, no --matched, no GITHUB_REF_NAME: MatchedRefError."""
+    """git mode, detached HEAD, no --matched, no GITHUB_REF_NAME:
+    MatchedRefError lists the known revs and the remediation."""
+    git(git_repo, "checkout", "-q", "--detach")
     monkeypatch.delenv("GITHUB_REF_NAME", raising=False)
     vset = load_versions(versions_file(tmp_path))
     with pytest.raises(vcs.MatchedRefError) as excinfo:
@@ -342,6 +386,12 @@ def test_git_without_any_matched_ref_fails_loudly(
     msg = str(excinfo.value)
     assert "--matched" in msg and "GITHUB_REF_NAME" in msg
     assert str(git_repo) in msg
+    for rev in (
+        "new-docs-fc-26.05-production",
+        "new-docs-master",
+        "new-docs-fc-25.11-production",
+    ):
+        assert rev in msg
 
 
 def test_matched_rev_unknown_to_the_toml_fails_loudly(

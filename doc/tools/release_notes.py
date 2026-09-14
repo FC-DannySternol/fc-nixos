@@ -82,8 +82,6 @@ import datetime
 import json
 import re
 import ssl
-import subprocess
-import sys
 import urllib.request
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -92,6 +90,7 @@ from pathlib import Path
 import certifi
 import structlog
 
+from tools._cli import DOC_ROOT, REPO_ROOT, configure_cli_logging
 from tools.gen_platform_versions import VersionSet, load_versions
 from tools.vcs_backend import (
     GitBackend,
@@ -100,17 +99,10 @@ from tools.vcs_backend import (
     RefResolutionError,
     VcsError,
     detect_backend,
+    run_vcs,
 )
 
 log = structlog.get_logger()
-
-# doc/ root -- defaults resolve relative to the module, not the cwd,
-# so the tool works from any directory (sister tools do the same).
-DOC_ROOT = Path(__file__).resolve().parents[1]
-
-# The repository that carries the changelog fragments and release
-# metadata: doc/'s parent (the fc-nixos working copy / mirror clone).
-REPO_ROOT = DOC_ROOT.parent
 
 # Every release section in a branch CHANGELOG.md starts with a level-1
 # heading ``# Release YYYY_NNN``; the file is cumulative (newest first).
@@ -151,13 +143,6 @@ PULL_UPSTREAM_PREFIX = "- Pull upstream"
 def production_branch(ver: str) -> str:
     """The production branch a platform version releases from."""
     return f"fc-{ver}-production"
-
-
-def _run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    """One captured subprocess -- never checked, never silent."""
-    return subprocess.run(
-        argv, cwd=cwd, capture_output=True, text=True, check=False
-    )
 
 
 # --- ported text pipeline (split/parse/transform/render) -------------------
@@ -268,7 +253,7 @@ def next_monday(today: datetime.date | None = None) -> datetime.date:
     Release notes publish on Mondays (observed pattern: Thursday release,
     Monday publish). A Monday *today* rolls to the following Monday.
     """
-    today = today or datetime.datetime.now(tz=datetime.timezone.utc).date()
+    today = today or datetime.datetime.now(tz=datetime.UTC).date()
     days = (0 - today.weekday()) % 7
     return today + datetime.timedelta(days=days or 7)
 
@@ -411,7 +396,7 @@ def collect_commits(
     resolved ``refs/remotes/origin/<branch>`` commit -- both strictly local.
     """
     if isinstance(backend, HgBackend):
-        proc = _run(
+        proc = run_vcs(
             [
                 "hg",
                 "log",
@@ -425,7 +410,7 @@ def collect_commits(
             backend.repo,
         )
     else:
-        proc = _run(
+        proc = run_vcs(
             [
                 "git",
                 "--no-pager",
@@ -492,9 +477,7 @@ def derive_release_chain(
     return old_rev, new_rev
 
 
-def _json_at(
-    backend: HgBackend | GitBackend, rev: str, path: str
-) -> dict | None:
+def _json_at(backend: HgBackend | GitBackend, rev: str, path: str) -> dict | None:
     """Parsed JSON content of *path* at *rev* (None when absent/broken)."""
     return package_versions_json(backend.read_file(rev, path))
 
@@ -576,9 +559,7 @@ def render_detailed_changes(
     for ver, branch in contributing:
         chain = derive_release_chain(backend, branch, release_id)
         if chain is None:
-            log.warning(
-                "detailed-changes-chain-missing", version=ver, branch=branch
-            )
+            log.warning("detailed-changes-chain-missing", version=ver, branch=branch)
             continue
         old_rev, new_rev = chain
         old_np = nixpkgs_rev(backend, old_rev)
@@ -614,9 +595,7 @@ def render_detailed_changes(
             "[metadata](https://my.flyingcircus.io/releases/metadata/"
             f"{branch}/{release_id})"
         )
-        channel_url = (
-            channel_url_fn(branch, release_id) if channel_url_fn else None
-        )
+        channel_url = channel_url_fn(branch, release_id) if channel_url_fn else None
         if channel_url:
             parts.append(f"[channel url]({channel_url})")
         lines.append(f"- NixOS {ver}: " + ", ".join(parts))
@@ -673,11 +652,7 @@ def _find_contributions(
         impact, platform = transform_section(
             parse_section(sections[release_id]), entry.ver
         )
-        chain = (
-            derive_release_chain(backend, branch, release_id)
-            if detailed
-            else None
-        )
+        chain = derive_release_chain(backend, branch, release_id) if detailed else None
         contributing.append(
             Contribution(
                 ver=entry.ver,
@@ -702,9 +677,7 @@ def _collect_mode_page(
     """(impact_blocks, platform_blocks, detailed_lines) from fragments."""
     fragment_dir = repo / "changelog.d"
     fragments = (
-        sorted(fragment_dir.glob(FRAGMENT_GLOB))
-        if fragment_dir.is_dir()
-        else []
+        sorted(fragment_dir.glob(FRAGMENT_GLOB)) if fragment_dir.is_dir() else []
     )
     if not fragments:
         msg = (
@@ -715,9 +688,7 @@ def _collect_mode_page(
         raise RuntimeError(msg)
     ver = versions.stable.ver
     collected = collect_fragments(fragment_dir)
-    impact_blocks = (
-        [(ver, "\n\n".join(collected.impact))] if collected.impact else []
-    )
+    impact_blocks = [(ver, "\n\n".join(collected.impact))] if collected.impact else []
     platform_body = "\n\n".join(collected.platform)
     diff_lines = _collect_mode_diff(versions, repo, backend, ver)
     platform_blocks = [(ver, with_pull_block(platform_body, diff_lines))]
@@ -818,9 +789,7 @@ def run_release_notes(
     failures. Returns the rendered page text.
     """
     if not _RELEASE_ID.fullmatch(release_id):
-        raise ValueError(
-            f"release id must be of the form YYYY_NNN: {release_id!r}"
-        )
+        raise ValueError(f"release id must be of the form YYYY_NNN: {release_id!r}")
     if not _PUBLISH_DATE.fullmatch(publish_date):
         raise ValueError(
             f"publish date must be of the form YYYY-MM-DD: {publish_date!r}"
@@ -853,9 +822,7 @@ def run_release_notes(
             if contribution.platform is not None:
                 body = contribution.platform
                 if detailed and contribution.chain is not None:
-                    diff_lines = release_package_diff(
-                        backend, contribution.chain
-                    )
+                    diff_lines = release_package_diff(backend, contribution.chain)
                     body = with_pull_block(strip_pull_block(body), diff_lines)
                 platform_blocks.append((contribution.ver, body))
         # r035 pattern: sections ascending by version (21.05 before 24.05).
@@ -895,32 +862,6 @@ def run_release_notes(
     return text
 
 
-# Minimum log level for the CLI (matches logging.INFO; the int literal keeps
-# the tool free of an ``import logging`` per the project's structlog-only
-# rule).
-_INFO_LEVEL = 20
-
-
-def _configure_logging() -> None:
-    """Render human-readable diagnostics to stderr.
-
-    stderr, resolved at call time: ``make`` surfaces a failing
-    prerequisite's stderr verbatim while stdout stays clean for
-    ``--dry-run`` output -- and pytest's capsys captures it
-    (capture_logs around ``main()`` does NOT work: this
-    reconfiguration clobbers it).
-    """
-    structlog.configure(
-        processors=[
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.add_log_level,
-            structlog.dev.ConsoleRenderer(colors=False),
-        ],
-        wrapper_class=structlog.make_filtering_bound_logger(_INFO_LEVEL),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
-    )
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry: ``python -m tools.release_notes``.
 
@@ -929,7 +870,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ``--force``), ``2`` (malformed release id / publish date, invalid
     platform-versions.toml).
     """
-    _configure_logging()
+    configure_cli_logging()
     parser = argparse.ArgumentParser(
         prog="release_notes",
         description=(
@@ -962,15 +903,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--no-detailed",
         dest="detailed",
         action="store_false",
-        help="Skip the Detailed Changes section and the VCS-chain-derived "
-        "package diff",
+        help="Skip the Detailed Changes section and the VCS-chain-derived package diff",
     )
     parser.add_argument(
         "--out",
         type=Path,
         default=DOC_ROOT / "src",
-        help="src tree root to place changes/<year>/rNNN.md in "
-        "(default: doc/src)",
+        help="src tree root to place changes/<year>/rNNN.md in (default: doc/src)",
     )
     parser.add_argument(
         "--force",
@@ -992,10 +931,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             detailed=args.detailed,
         )
     except ValueError as exc:
-        log.error("release-notes-invalid", error=str(exc))
+        log.exception("release-notes-invalid", error=str(exc))
         return 2
     except (VcsError, RuntimeError, FileExistsError, OSError) as exc:
-        log.error("release-notes-failed", error=str(exc))
+        log.exception("release-notes-failed", error=str(exc))
         return 1
     if args.dry_run:
         print(text, end="")
