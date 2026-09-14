@@ -1,10 +1,10 @@
 """Shared CLI plumbing for the docs pipeline tools.
 
-The five CLI modules (:mod:`tools.checkout_versioned_docs`,
+The six CLI modules (:mod:`tools.checkout_versioned_docs`,
 :mod:`tools.gen_platform_versions`,
-:mod:`tools.gen_changes_index`, :mod:`tools.release_notes`,
-:mod:`tools.scaffold_page`) share the same argparse defaults and the
-same stderr logging contract:
+:mod:`tools.gen_changes_index`, :mod:`tools.gen_components_index`,
+:mod:`tools.release_notes`, :mod:`tools.scaffold_page`) share the
+same argparse defaults and the same stderr logging contract:
 
 * :data:`DOC_ROOT` / :data:`REPO_ROOT` -- doc/-relative path
   constants, resolved from THIS module (never the cwd), so every tool

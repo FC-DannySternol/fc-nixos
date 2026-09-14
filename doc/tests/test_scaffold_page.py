@@ -168,10 +168,7 @@ def test_generate_nav_insert_sorted_in_middle(mini_doc: Path) -> None:
         "PostgreSQL",
     ]
     # exact house indentation: 10 spaces like the sibling entries
-    assert (
-        '\n          { "MongoDB Lite" = "components/mongodb-lite.md" },\n'
-        in nav
-    )
+    assert '\n          { "MongoDB Lite" = "components/mongodb-lite.md" },\n' in nav
     assert any(
         e["event"] == "page-scaffolded"
         and e["name"] == "mongodb-lite"
@@ -238,9 +235,7 @@ def test_generate_title_defaults_to_capitalized_slug(
     section = components_section(parsed_nav(mini_doc))
     assert group_labels(section, "Databases")[-1] == "Somedb"
     first_line = (
-        (mini_doc / "src" / "components" / "somedb.md")
-        .read_text()
-        .splitlines()[0]
+        (mini_doc / "src" / "components" / "somedb.md").read_text().splitlines()[0]
     )
     assert first_line == "# Somedb { #nixos-somedb }"
 
@@ -274,9 +269,7 @@ def test_remove_tombstone_anatomy(mini_doc: Path) -> None:
     import re
 
     assert not re.search(r"\d{2}\.\d{2}", text)
-    assert any(
-        e["event"] == "page-removed" and e["name"] == "mysql" for e in logs
-    )
+    assert any(e["event"] == "page-removed" and e["name"] == "mysql" for e in logs)
 
 
 def test_remove_marks_nav_label_removed_in_place(mini_doc: Path) -> None:
@@ -298,9 +291,7 @@ def test_remove_marks_nav_label_removed_in_place(mini_doc: Path) -> None:
             entries = item.get("Databases")
             if isinstance(entries, list):
                 marked = [
-                    e
-                    for e in entries
-                    if isinstance(e, dict) and "MySQL (removed)" in e
+                    e for e in entries if isinstance(e, dict) and "MySQL (removed)" in e
                 ]
                 assert marked == [{"MySQL (removed)": "components/mysql.md"}]
 
@@ -320,9 +311,7 @@ def test_remove_unknown_page_fails(mini_doc: Path) -> None:
 
 def test_remove_missing_nav_entry_fails(tmp_path: Path) -> None:
     """A page without a Components nav entry cannot be removed."""
-    nav = MINI_ZENSICAL.replace(
-        '          { "MySQL" = "components/mysql.md" },\n', ""
-    )
+    nav = MINI_ZENSICAL.replace('          { "MySQL" = "components/mysql.md" },\n', "")
     root = write_mini_doc(tmp_path / "doc", nav=nav)
 
     with pytest.raises(sp.ScaffoldError, match="no nav entry"):
@@ -340,8 +329,7 @@ def test_remove_german_twin_fails_loudly(mini_doc: Path) -> None:
     assert "de/components/mysql.md" in str(excinfo.value)
     # the EN page must be untouched when the tool refuses
     assert (
-        "managed instance"
-        in (mini_doc / "src" / "components" / "mysql.md").read_text()
+        "managed instance" in (mini_doc / "src" / "components" / "mysql.md").read_text()
     )
 
 
@@ -386,6 +374,31 @@ def test_remove_keeps_page_switchable_in_payload(
 
 
 # ---------------------------------------------------------------------------
+# overview regeneration (tools.gen_components_index integration)
+# ---------------------------------------------------------------------------
+
+
+def test_generate_lists_new_page_in_overview(mini_doc: Path) -> None:
+    """scaffold() refreshes the generated components overview."""
+    sp.scaffold("somedb", None, "Databases", mini_doc)
+
+    overview = (mini_doc / "src" / "components" / "index.md").read_text()
+    assert "- [Somedb](somedb.md)" in overview
+    assert overview.index("(postgresql.md)") < overview.index("(somedb.md)")
+
+
+def test_remove_drops_tombstoned_page_from_overview(
+    mini_doc: Path,
+) -> None:
+    """remove_page() drops the tombstoned page from the overview."""
+    sp.remove_page("mysql", mini_doc)
+
+    overview = (mini_doc / "src" / "components" / "index.md").read_text()
+    assert "(mysql.md)" not in overview
+    assert "(postgresql.md)" in overview
+
+
+# ---------------------------------------------------------------------------
 # CLI facade
 # ---------------------------------------------------------------------------
 
@@ -413,9 +426,7 @@ def test_main_generates_page(
     assert "nav-entry-inserted" in err
 
 
-def test_main_remove(
-    mini_doc: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_main_remove(mini_doc: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """:meth:`main --remove` tombstones and marks the nav label."""
     code = sp.main(["--remove", "mysql", "--doc-root", str(mini_doc)])
 

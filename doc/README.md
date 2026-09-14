@@ -76,6 +76,7 @@ Both tool targets accept `MATCHED=<rev>` to override the matched rev
 ./zensical serve
 ./appenv python -m tools.checkout_versioned_docs
 ./appenv python -m tools.gen_platform_versions
+./appenv python -m tools.gen_components_index   # regenerates src/components/index.md (see "Adding a component page")
 ./appenv python -m tools.scaffold_page ...     # see "Adding a component page"
 ./appenv python -m tools.release_notes ...     # see "Release notes"
 ```
@@ -228,6 +229,7 @@ Compact rules; the tools above do the mechanical part:
 | `src/` | committed | English manual pages |
 | `src/de/` | committed | German pages, served at `/de/<path>/`, each cross-links its English twin |
 | `src/changes/` | committed | release-note pages `<year>/r<NNN>.md` + generated `index.md` |
+| `src/components/` | committed | component pages `<name>.md` + generated overview `index.md` |
 | `snippets/` | committed | shared text fragments (see [Snippets](#snippets)) |
 | `theme/`, `src/_static/` | committed | theme overrides, CSS/JS, vendored fonts and lightbox |
 | `zensical.toml` | committed | build config + hand-maintained nav |
@@ -269,6 +271,14 @@ renames the nav label to `<Label> (removed)`. The page file stays on
 purpose: the switcher payload scan is file-existence based, so the
 version switcher keeps offering the snapshots' real documentation for
 the removed component.
+
+Both modes also regenerate the component overview
+`src/components/index.md` (`tools.gen_components_index`): adding a
+page lists it, removing one drops it. The overview is generated,
+COMMITTED, and never hand-edited -- regenerate manually with
+`./appenv python -m tools.gen_components_index`; `make check` fails
+when the committed page is stale (the real-tree no-diff test in
+`tests/test_gen_components_index.py`).
 
 ### Snippets
 
@@ -336,5 +346,5 @@ the dev dependency group -- the appenv venv has no pytest.
 | `test_de_pages.py` | German tree: reference resolution, search and nav exclusion |
 | `test_nav_general.py`, `test_no_dead_layout_refs.py` | nav and theme invariants |
 | `test_docs_workflow.py` | CI workflow action pins |
-| `test_release_notes.py`, `test_gen_changes_index.py`, `test_scaffold_page.py`, `test_vcs_backend.py` | tool units |
+| `test_release_notes.py`, `test_gen_changes_index.py`, `test_gen_components_index.py`, `test_scaffold_page.py`, `test_vcs_backend.py` | tool units |
 

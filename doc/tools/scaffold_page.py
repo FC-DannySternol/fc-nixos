@@ -338,6 +338,12 @@ def scaffold(
     page.parent.mkdir(parents=True, exist_ok=True)
     page.write_text(STUB_TEMPLATE.format(name=name, title=resolved_title))
     write_nav(doc_root, lines)
+    # Lazy import: tools.gen_components_index imports TOMBSTONE_MARKER
+    # from this module (single source of truth) -- a module-level
+    # import would be circular.
+    from tools.gen_components_index import regenerate
+
+    regenerate(doc_root / "src")
     log.info(
         "page-scaffolded",
         name=name,
@@ -383,6 +389,10 @@ def remove_page(name: str, doc_root: Path = DOC_ROOT) -> Path:
 
     page.write_text(TOMBSTONE_TEMPLATE.format(h1=h1, marker=TOMBSTONE_MARKER))
     write_nav(doc_root, lines)
+    # Lazy import (see scaffold()): avoids the module-level cycle.
+    from tools.gen_components_index import regenerate
+
+    regenerate(doc_root / "src")
     log.info("page-removed", name=name, page=page_rel.as_posix(), h1=h1)
     log.info(
         "nav-marked-removed",
