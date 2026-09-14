@@ -37,9 +37,7 @@ from tools.vcs_backend import GitBackend, HgBackend
 
 CHANNEL_URL = "https://hydra.flyingcircus.io/build/1/download/1/nixexprs.tar.xz"
 
-R003_CHANGELOG = (
-    "# Release 2026_003\n\n## NixOS XX.XX platform\n\n- old bullet\n"
-)
+R003_CHANGELOG = "# Release 2026_003\n\n## NixOS XX.XX platform\n\n- old bullet\n"
 R004_CHANGELOG = (
     "# Release 2026_004\n\n"
     "## Impact\n\n- Machines will reboot.\n\n"
@@ -62,21 +60,15 @@ PACKAGES_V2 = {
 IMPORTANT = ["chromium", "vim", "zsh"]
 
 
-def _collect_state(
-    root: Path, changelog: str, np_rev: str, packages: dict
-) -> None:
+def _collect_state(root: Path, changelog: str, np_rev: str, packages: dict) -> None:
     (root / "changelog.d").mkdir(exist_ok=True)
     (root / "release").mkdir(exist_ok=True)
     (root / "changelog.d" / "CHANGELOG.md").write_text(changelog)
     (root / "release" / "versions.json").write_text(
         json.dumps({"nixpkgs": {"rev": np_rev}})
     )
-    (root / "release" / "package-versions.json").write_text(
-        json.dumps(packages)
-    )
-    (root / "release" / "important_packages.json").write_text(
-        json.dumps(IMPORTANT)
-    )
+    (root / "release" / "package-versions.json").write_text(json.dumps(packages))
+    (root / "release" / "important_packages.json").write_text(json.dumps(IMPORTANT))
 
 
 @pytest.fixture
@@ -218,7 +210,7 @@ def test_render_release_single_version_matches_hand_format():
     )
     assert text == (
         "---\n"
-        "Publish Date: '2026-08-17'\n"
+        "date: '2026-08-17'\n"
         "---\n"
         "\n"
         "\n"
@@ -250,8 +242,7 @@ def test_render_release_single_version_matches_hand_format():
 def test_render_release_empty_section():
     text = rn.render_release("2026_028", "2026-07-13", [], [], [])
     assert text == (
-        "---\nPublish Date: '2026-07-13'\n---\n\n\n"
-        "# Release 2026_028 (2026-07-13)\n\n"
+        "---\ndate: '2026-07-13'\n---\n\n\n# Release 2026_028 (2026-07-13)\n\n"
     )
 
 
@@ -262,15 +253,11 @@ def test_render_release_never_renders_the_archive_line():
 
 def test_next_monday_after_thursday_release():
     # Thursday 2026-07-30 -> Monday 2026-08-03 (observed r031 pattern)
-    assert rn.next_monday(datetime.date(2026, 7, 30)) == datetime.date(
-        2026, 8, 3
-    )
+    assert rn.next_monday(datetime.date(2026, 7, 30)) == datetime.date(2026, 8, 3)
 
 
 def test_next_monday_rolls_from_monday():
-    assert rn.next_monday(datetime.date(2026, 8, 3)) == datetime.date(
-        2026, 8, 10
-    )
+    assert rn.next_monday(datetime.date(2026, 8, 3)) == datetime.date(2026, 8, 10)
 
 
 def test_production_branch_derives_from_version():
@@ -433,10 +420,7 @@ def test_derive_release_chain_hg(hg_repo: Path):
 
 def test_derive_release_chain_unknown_release_is_none(git_repo: Path):
     backend = GitBackend(repo=git_repo)
-    assert (
-        rn.derive_release_chain(backend, "fc-26.05-production", "2026_099")
-        is None
-    )
+    assert rn.derive_release_chain(backend, "fc-26.05-production", "2026_099") is None
 
 
 # --- orchestration: history mode ------------------------------------------------
@@ -481,7 +465,7 @@ def test_run_release_notes_git_history_mode(git_repo: Path, tmp_path: Path):
         )
     assert text == (
         "---\n"
-        "Publish Date: '2026-08-17'\n"
+        "date: '2026-08-17'\n"
         "---\n\n\n"
         "# Release 2026_004 (2026-08-17)\n\n"
         "## Impact\n\n"
@@ -523,9 +507,7 @@ def test_run_release_notes_skips_unresolvable_production_branches(
             channel_url_fn=_channel_url,
         )
     skipped = [
-        entry
-        for entry in logs
-        if entry["event"] == "production-branch-unavailable"
+        entry for entry in logs if entry["event"] == "production-branch-unavailable"
     ]
     assert {entry["branch"] for entry in skipped} == {
         "fc-26.11-production",
@@ -542,9 +524,7 @@ def test_run_release_notes_skips_unresolvable_production_branches(
     ],
     criteria=["date korrekt", "versions == ['26.05']"],
 )
-def test_rendered_page_passes_changes_index_parser(
-    git_repo: Path, tmp_path: Path
-):
+def test_rendered_page_passes_changes_index_parser(git_repo: Path, tmp_path: Path):
     out = tmp_path / "src"
     rn.run_release_notes(
         versions_file(tmp_path),
@@ -573,9 +553,7 @@ def test_rendered_page_passes_changes_index_parser(
         "nixpkgs-/metadata-/channel-Teile vorhanden",
     ],
 )
-def test_hg_mode_shamap_gap_warns_instead_of_faking(
-    hg_repo: Path, tmp_path: Path
-):
+def test_hg_mode_shamap_gap_warns_instead_of_faking(hg_repo: Path, tmp_path: Path):
     with capture_logs() as logs:
         text = rn.run_release_notes(
             versions_file(tmp_path),
@@ -650,9 +628,7 @@ def test_run_release_notes_refuses_existing_without_force(
 
 def test_run_release_notes_validates_release_id_and_date(tmp_path: Path):
     with pytest.raises(ValueError, match="YYYY_NNN"):
-        rn.run_release_notes(
-            versions_file(tmp_path), tmp_path, "bad", "2026-08-17"
-        )
+        rn.run_release_notes(versions_file(tmp_path), tmp_path, "bad", "2026-08-17")
     with pytest.raises(ValueError, match="YYYY-MM-DD"):
         rn.run_release_notes(
             versions_file(tmp_path), tmp_path, "2026_004", "17.08.2026"
@@ -686,12 +662,8 @@ def test_collect_mode_renders_skeleton_without_vcs(tmp_path: Path):
         "### NixOS XX.XX platform\n\n- Fix two.\n"
     )
     (sandbox / "release").mkdir()
-    (sandbox / "release" / "package-versions.json").write_text(
-        json.dumps(PACKAGES_V2)
-    )
-    (sandbox / "release" / "important_packages.json").write_text(
-        json.dumps(IMPORTANT)
-    )
+    (sandbox / "release" / "package-versions.json").write_text(json.dumps(PACKAGES_V2))
+    (sandbox / "release" / "important_packages.json").write_text(json.dumps(IMPORTANT))
     with capture_logs() as logs:
         text = rn.run_release_notes(
             versions_file(tmp_path),
@@ -710,9 +682,7 @@ def test_collect_mode_renders_skeleton_without_vcs(tmp_path: Path):
     assert "collect-mode-no-vcs" in events
     assert "fragments-collected" in events
     assert "package-diff-skipped" in events
-    rel = gci.parse_release_page(
-        tmp_path / "src" / "changes" / "2026" / "r005.md"
-    )
+    rel = gci.parse_release_page(tmp_path / "src" / "changes" / "2026" / "r005.md")
     assert (rel.date, rel.versions) == ("2026-08-24", ["26.05"])
 
 
@@ -753,9 +723,7 @@ def test_collect_mode_without_fragments_fails_loudly(tmp_path: Path):
     empty = tmp_path / "empty-repo"
     empty.mkdir()
     with pytest.raises(RuntimeError, match="no fragments"):
-        rn.run_release_notes(
-            versions_file(tmp_path), empty, "2026_005", "2026-08-24"
-        )
+        rn.run_release_notes(versions_file(tmp_path), empty, "2026_005", "2026-08-24")
 
 
 def test_collect_mode_never_touches_fragments(hg_repo: Path, tmp_path: Path):
@@ -828,13 +796,11 @@ def test_cli_write_dry_run_validation_force(
     )
     assert code == 0
     captured = capsys.readouterr()
-    assert captured.out.startswith("---\nPublish Date: '2026-08-17'\n---")
+    assert captured.out.startswith("---\ndate: '2026-08-17'\n---")
     assert captured.out == (out / "changes" / "2026" / "r004.md").read_text()
     assert "release-page-dry-run" in captured.err
 
-    assert (
-        rn.main([str(config), "2026_004", "--publish-date", "17.08.2026"]) == 2
-    )
+    assert rn.main([str(config), "2026_004", "--publish-date", "17.08.2026"]) == 2
     assert rn.main([str(config), "nope"]) == 2
     assert (
         rn.main(
@@ -895,7 +861,7 @@ def test_cli_defaults_publish_date_to_next_monday(
         == 0
     )
     text = (out / "changes" / "2026" / "r004.md").read_text()
-    assert "Publish Date: '2026-08-24'" in text
+    assert "date: '2026-08-24'" in text
 
 
 # --- documentation contract ------------------------------------------------------

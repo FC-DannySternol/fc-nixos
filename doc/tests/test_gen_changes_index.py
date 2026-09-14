@@ -5,7 +5,7 @@ into the committed changelog archive ``src/changes/index.md`` and
 places the archive link on the latest release page. Properties that
 pin the design:
 
-- ``parse_release_page`` extracts the ``Publish Date`` frontmatter
+- ``parse_release_page`` extracts the ``date:`` frontmatter
   date, the unique ``## NixOS NN.NN platform`` versions (descending)
   and the markers ``cancelled`` (H1 suffix) / ``never rolled out``
   (body phrase); marker pages legitimately lack date/versions;
@@ -36,7 +36,7 @@ from tests.helpers import DOC_ROOT as DOC
 from tools import gen_changes_index as gci
 
 PAGE_TMPL = """---
-Publish Date: '{date}'
+date: '{date}'
 ---
 
 # Release {label} ({date})
@@ -66,14 +66,10 @@ def build_tree(src: Path) -> None:
     (ch / "2025").mkdir(parents=True)
     (ch / "2026").mkdir()
     (ch / "2025" / "r001.md").write_text(
-        PAGE_TMPL.format(
-            date="2025-01-06", label="2025_001", v1="23.11", v2="24.05"
-        )
+        PAGE_TMPL.format(date="2025-01-06", label="2025_001", v1="23.11", v2="24.05")
     )
     (ch / "2026" / "r001.md").write_text(
-        PAGE_TMPL.format(
-            date="2026-01-13", label="2026_001", v1="25.11", v2="25.11"
-        )
+        PAGE_TMPL.format(date="2026-01-13", label="2026_001", v1="25.11", v2="25.11")
     )
     (ch / "2026" / "r002.md").write_text(
         "# Release 2026_002 (cancelled)\n\n"
@@ -82,7 +78,7 @@ def build_tree(src: Path) -> None:
     )
     (ch / "2026" / "r003.md").write_text(
         "---\n"
-        "Publish Date: '2026-01-27'\n"
+        "date: '2026-01-27'\n"
         "---\n\n"
         "# Release 2026_003 (2026-01-27)\n\n"
         "***This release was never rolled out to production due to a"
@@ -90,9 +86,7 @@ def build_tree(src: Path) -> None:
         "*All releases: [changelog archive](../index.md).*\n"
     )
     (ch / "2026" / "r004.md").write_text(
-        PAGE_TMPL.format(
-            date="2026-02-02", label="2026_004", v1="25.11", v2="26.05"
-        )
+        PAGE_TMPL.format(date="2026-02-02", label="2026_004", v1="25.11", v2="26.05")
     )
 
 
@@ -157,9 +151,7 @@ def test_render_index_tables_desc(tmp_path):
     assert "| Release | Date | Versions |" in md
     assert "| ------- | ---- | -------- |" in md
     assert "| [2026_004](2026/r004.md) | 2026-02-02 | 26.05, 25.11 |" in md
-    assert (
-        "| [2026_003](2026/r003.md) | 2026-01-27 | *(never rolled out)* |" in md
-    )
+    assert "| [2026_003](2026/r003.md) | 2026-01-27 | *(never rolled out)* |" in md
     assert "| [2026_002](2026/r002.md) | — | *(cancelled)* |" in md
     assert "| [2026_001](2026/r001.md) | 2026-01-13 | 25.11 |" in md
     assert "| [2025_001](2025/r001.md) | 2025-01-06 | 24.05, 23.11 |" in md
@@ -191,8 +183,7 @@ def test_latest_link_idempotent_and_former_latest_untouched(tmp_path):
     assert gci.main(["--src", str(src)]) == 0
     assert (
         "# Release 2026_004 (2026-02-02)\n\n"
-        "*All releases: [changelog archive](../index.md).*\n"
-        in r004.read_text()
+        "*All releases: [changelog archive](../index.md).*\n" in r004.read_text()
     )
     assert r003.read_text() == before003
 

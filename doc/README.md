@@ -48,16 +48,17 @@ snapshots and switcher data.
 ### Full build
 
 ```bash
-make    # checkout-versioned-docs -> gen-platform-versions -> html
+make    # checkout-versioned-docs -> gen-platform-versions -> html -> feeds
 ```
 
 | Target | Effect |
 | --- | --- |
-| `make` | Full pipeline: place snapshots, generate switcher data, build HTML into `_build/` |
+| `make` | Full pipeline: place snapshots, generate switcher data, build HTML into `_build/`, generate the release-notes RSS feed |
 | `make serve` | Placement + switcher data, then the live preview server |
 | `make checkout-versioned-docs` | Places version snapshots under `src/<ver>/` from the revisions in `platform-versions.toml` |
 | `make gen-platform-versions` | Regenerates `src/_static/platform-versions.js` (switcher payload) from `platform-versions.toml` and the page inventory |
 | `make html` | Builds the static HTML into `_build/` |
+| `make feeds` | Generates `_build/feed_rss.xml` (release-notes RSS, see [Release notes](#release-notes)) |
 | `make test` | Runs the test suite in `tests/` (see [Tests](#tests)) |
 | `make lint` / `make typecheck` | Dev-only quality gates: ruff (lint) and ty (type check) over `tools/` and `tests/` |
 | `make check` | Full quality gate: `lint` + `typecheck` + `test` |
@@ -74,6 +75,7 @@ Both tool targets accept `MATCHED=<rev>` to override the matched rev
 ```bash
 ./zensical build
 ./zensical serve
+./zensical-feeds
 ./appenv python -m tools.checkout_versioned_docs
 ./appenv python -m tools.gen_platform_versions
 ./appenv python -m tools.gen_components_index   # regenerates src/components/index.md (see "Adding a component page")
@@ -319,6 +321,20 @@ Each release gets a page `src/changes/<year>/r<NNN>.md`:
    regenerates `src/changes/index.md`; move the nav "Changelog" entry
    in `zensical.toml` to the new page (manual -- the tools do not
    touch the nav).
+
+Every release page carries its release date as `date:` frontmatter --
+the one key both `tools.gen_changes_index` (archive tables) and the
+RSS feed read. The feed: `make feeds` (or `./zensical-feeds`) runs the
+[zensical-feeds](https://pypi.org/project/zensical-feeds/) companion
+CLI after `make html` and writes `_build/feed_rss.xml` -- all release
+pages back to 2021, newest first, deterministic (rebuilds are
+byte-identical; CI ships the feed with the HTML artifact). Snapshot
+copies under `src/<ver>/` can never match the anchored feed patterns,
+index pages and marker pages (cancelled / never rolled out) stay out.
+Browsers find the feed through the autodiscovery `<link>` in
+`theme/main.html`; the feed config lives in the `[feeds]` table of
+`zensical.toml`. There is no ICS calendar feed -- release notes are
+not events.
 
 ## Continuous integration
 

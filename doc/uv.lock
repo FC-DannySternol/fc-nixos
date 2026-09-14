@@ -47,7 +47,9 @@ dependencies = [
     { name = "linkify-it-py" },
     { name = "ruamel-yaml" },
     { name = "structlog" },
+    { name = "tzdata" },
     { name = "zensical" },
+    { name = "zensical-feeds" },
 ]
 
 [package.dev-dependencies]
@@ -64,7 +66,9 @@ requires-dist = [
     { name = "linkify-it-py", specifier = ">=2.1.0" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "structlog", specifier = ">=24" },
+    { name = "tzdata", specifier = ">=2026.4" },
     { name = "zensical", specifier = ">=0.0.54" },
+    { name = "zensical-feeds", specifier = ">=0.2.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -434,6 +438,15 @@ wheels = [
 ]
 
 [[package]]
+name = "tzdata"
+version = "2026.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/31/3d74fa778a63b98b7374323befcc0be5ab3bd94afd4096a0124e7379152c/tzdata-2026.4.tar.gz", hash = "sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79", size = 199350, upload-time = "2026-09-12T12:56:03.251Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/bc/8737e8d54cf51106118039b83f485a4783112fab49ea9d044b234978a46e/tzdata-2026.4-py2.py3-none-any.whl", hash = "sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81", size = 347494, upload-time = "2026-09-12T12:56:01.67Z" },
+]
+
+[[package]]
 name = "zensical"
 version = "0.0.60"
 source = { registry = "https://pypi.org/simple" }
@@ -458,4 +471,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a4/04/44c89ed5e6063685406e19a038d537d1a4e23827576855253aa6f325fcf0/zensical-0.0.60-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:db08984a78e3efccf44a94a9018b74822bacbe8d46acf6dbe1d70eba71dbf901", size = 14729268, upload-time = "2026-09-08T13:56:27.39Z" },
     { url = "https://files.pythonhosted.org/packages/a4/21/ac185d4b1431943d908bd05c4fe08bec31be897f762dc992850d7aa566b0/zensical-0.0.60-cp310-abi3-win_amd64.whl", hash = "sha256:4013562c15370b4a5c49e9b429b072008aef1cc99b05c8836c483fb57e9ef3aa", size = 14513117, upload-time = "2026-09-08T13:56:30.033Z" },
     { url = "https://files.pythonhosted.org/packages/10/c4/be9b56da4f838da24b108e7ae17b93d6d6a38d84fdb5f1c1fd700fd8c967/zensical-0.0.60-cp310-abi3-win_arm64.whl", hash = "sha256:a627da582bd3af0c6f0e750750a51911435baa5b82dc73726b1e7dcba2713426", size = 14223748, upload-time = "2026-09-08T13:56:32.59Z" },
+]
+
+[[package]]
+name = "zensical-feeds"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "markdown" },
+    { name = "pyyaml" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/10/ca/16554ef9c2a07424527ab8c222ed02a33fdbd361430f99c1c03fde4f07a4/zensical_feeds-0.2.0.tar.gz", hash = "sha256:bf8f5461c02de2b268f843025d7f18bb1afbf39bbe3150ae7624f4086628fcd8", size = 51880, upload-time = "2026-09-10T23:41:39.246Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/00/e1/7d167bd0cfbae6a24432d3578ed7f09ff0e34a97fe548d0bbd8493df8085/zensical_feeds-0.2.0-py3-none-any.whl", hash = "sha256:f1e0a52c50320e7c198a2cce6095ea8d1feaeffd52845602a326849010b95324", size = 30186, upload-time = "2026-09-10T23:41:38.22Z" },
 ]

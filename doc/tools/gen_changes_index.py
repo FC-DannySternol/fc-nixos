@@ -3,8 +3,9 @@
 Input is the release tree ``src/changes/<year>/rNNN.md``. Three
 facts are parsed per page:
 
-* the ``Publish Date: 'YYYY-MM-DD'`` frontmatter line -- the
-  release date;
+* the ``date: 'YYYY-MM-DD'`` frontmatter line -- the release date
+  (the same key ``zensical-feeds`` reads for the RSS feed; the
+  former ``Publish Date`` key was migrated 2026-09-14);
 * the ``## NixOS NN.NN platform`` section headings -- the platform
   versions carried, deduplicated, newest first;
 * markers: ``(cancelled)`` in the H1 or the body phrase ``never
@@ -46,7 +47,7 @@ from tools._cli import DOC_ROOT, configure_cli_logging
 log = structlog.get_logger()
 
 # Pinned line shapes of a release page.
-DATE_RE = re.compile(r"^Publish Date: '(\d{4}-\d{2}-\d{2})'$", re.MULTILINE)
+DATE_RE = re.compile(r"^date: ?'?(\d{4}-\d{2}-\d{2})'?$", re.MULTILINE)
 SECTION_RE = re.compile(r"^## NixOS (\d{2}\.\d{2}) platform$", re.MULTILINE)
 H1_RE = re.compile(r"^# (.+)$", re.MULTILINE)
 
@@ -76,8 +77,8 @@ class Release:
     """One release page below ``changes/``.
 
     ``year`` is the parent directory name and ``num`` the release
-    number from the ``rNNN`` stem. ``date`` is the ``Publish Date``
-    frontmatter value, ``versions`` the unique ``## NixOS NN.NN
+    number from the ``rNNN`` stem. ``date`` is the ``date:`` frontmatter
+    value, ``versions`` the unique ``## NixOS NN.NN
     platform`` headings (descending). ``marker`` names a special
     release (``cancelled`` / ``never rolled out``) or ``None``;
     marker pages legitimately lack date and/or versions.
@@ -150,7 +151,7 @@ def invalid_pages(changes: Path, releases: Sequence[tuple[Path, Release]]) -> li
     """Changes/-relative paths of non-marker pages lacking date or versions.
 
     Marker pages are exempt by design; everything else must carry a
-    ``Publish Date`` frontmatter line and at least one ``## NixOS
+    ``date:`` frontmatter line and at least one ``## NixOS
     NN.NN platform`` section.
     """
     return [
@@ -244,7 +245,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             pages=broken,
             count=len(broken),
             hint=(
-                "non-marker release pages need a Publish Date frontmatter "
+                "non-marker release pages need a 'date:' frontmatter "
                 "line and a '## NixOS NN.NN platform' section"
             ),
         )
