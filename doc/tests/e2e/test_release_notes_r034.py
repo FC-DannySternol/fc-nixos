@@ -84,9 +84,7 @@ def sandbox(tmp_path: Path) -> Path:
         "kein XX.XX mehr in der Seite",
     ],
 )
-def test_r034_skeleton_from_real_fragments(
-    sandbox: Path, tmp_path: Path
-) -> None:
+def test_r034_skeleton_from_real_fragments(sandbox: Path, tmp_path: Path) -> None:
     text = rn.run_release_notes(
         DOC_ROOT / "platform-versions.toml",
         sandbox,
@@ -95,7 +93,7 @@ def test_r034_skeleton_from_real_fragments(
         out=tmp_path / "src",
     )
     assert text.startswith(
-        f"---\nPublish Date: '{PUBLISH_DATE}'\n---\n\n\n"
+        f"---\ndate: '{PUBLISH_DATE}'\n---\n\n\n"
         f"# Release {RELEASE} ({PUBLISH_DATE})\n\n"
     )
     assert "XX.XX" not in text
@@ -103,9 +101,7 @@ def test_r034_skeleton_from_real_fragments(
     assert "## Detailed Changes" not in text
     assert "Pull upstream" not in text
     assert platform_bullets(text) == EXPECTED_BULLETS
-    rel = gci.parse_release_page(
-        tmp_path / "src" / "changes" / "2026" / "r034.md"
-    )
+    rel = gci.parse_release_page(tmp_path / "src" / "changes" / "2026" / "r034.md")
     assert (rel.date, rel.versions) == (PUBLISH_DATE, ["26.05"])
 
 
@@ -113,16 +109,10 @@ def test_r034_skeleton_from_real_fragments(
     intention="gen_changes_index-Uebergabe auf dem Sandbox-Baum: r034-Zeile "
     "in der Index-Tabelle, Archiv-Link wandert idempotent auf r034",
     steps=[
-        (
-            "echte r033-Gold-Seite als bisherige Latest in den Sandbox-Baum "
-            "kopieren"
-        ),
+        ("echte r033-Gold-Seite als bisherige Latest in den Sandbox-Baum kopieren"),
         "gen_changes_index.main --src sandbox ausfuehren",
         "Index-Tabelle, Archiv-Link und Idempotenz pruefen",
-        (
-            "Echtzustand (Fragmente, CHANGELOG, echte Pages) byte-identisch "
-            "halten"
-        ),
+        ("Echtzustand (Fragmente, CHANGELOG, echte Pages) byte-identisch halten"),
     ],
     criteria=[
         "Exit 0, r034-Zeile '| [2026_034](2026/r034.md) | 2026-08-24 | 26.05 |'",
@@ -147,9 +137,7 @@ def test_r034_gen_changes_index_handover(
     gold_r033 = (DOC_ROOT / "src" / "changes" / "2026" / "r033.md").read_text(
         encoding="utf-8"
     )
-    (src / "changes" / "2026" / "r033.md").write_text(
-        gold_r033, encoding="utf-8"
-    )
+    (src / "changes" / "2026" / "r033.md").write_text(gold_r033, encoding="utf-8")
 
     r034 = src / "changes" / "2026" / "r034.md"
     r033 = src / "changes" / "2026" / "r033.md"
@@ -180,9 +168,7 @@ def test_r034_gen_changes_index_handover(
     index_once = index
     assert gci.main(["--src", str(src)]) == 0
     assert r034.read_text(encoding="utf-8") == page_once
-    assert (src / "changes" / "index.md").read_text(encoding="utf-8") == (
-        index_once
-    )
+    assert (src / "changes" / "index.md").read_text(encoding="utf-8") == (index_once)
     err = capsys.readouterr().err
     assert "archive-link-present" in err
 

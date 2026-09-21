@@ -1,6 +1,6 @@
-.PHONY: all html serve clean test lint typecheck check
+.PHONY: all html feeds serve clean test lint typecheck check
 
-all: checkout-versioned-docs gen-platform-versions html
+all: checkout-versioned-docs gen-platform-versions html feeds
 
 # Explicit matched-rev override for the tools (empty: auto-detect --
 # hg ACTIVE bookmark; git GITHUB_REF_NAME, then checked-out branch).
@@ -14,6 +14,12 @@ checkout-versioned-docs:
 
 html:
 	./zensical build
+
+# Release-notes RSS feed (zensical-feeds companion CLI -- zensical has
+# no plugin API yet). Runs AFTER html: the feed lands in _build/ next
+# to the HTML, so CI's artifact upload ships it automatically.
+feeds:
+	./zensical-feeds
 
 serve: checkout-versioned-docs gen-platform-versions
 	./zensical serve

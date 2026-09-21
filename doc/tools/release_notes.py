@@ -5,7 +5,11 @@ platform-versions.toml <RELEASE> [--publish-date YYYY-MM-DD]
 [--dry-run] [--no-detailed]`` -- port of the /doc generator onto the
 shared :mod:`tools.vcs_backend` seam, plus a generated package diff
 and a fragment-collect mode. Two data sources, one rendered page in
-the hand-maintained golden format (r031/r033):
+the hand-maintained golden format (r031/r033): the frontmatter carries
+the release date under the ``date:`` key -- the ONE key every
+downstream consumer reads (``tools.gen_changes_index`` for the archive
+tables, ``zensical-feeds`` via ``zensical.toml``'s ``[feeds]`` table
+for the RSS feed at ``feed_rss.xml``):
 
 * HISTORY mode -- the release was collected: every version declared
   in the TOML contributes via its PRODUCTION branch
@@ -239,7 +243,7 @@ def render_release(
     if detailed_lines:
         sections.append("## Detailed Changes\n\n" + "\n".join(detailed_lines))
     text = (
-        f"---\nPublish Date: '{publish_date}'\n---\n\n\n"
+        f"---\ndate: '{publish_date}'\n---\n\n\n"
         f"# Release {release_id} ({publish_date})\n\n"
     )
     if sections:

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{#-
+  Feed autodiscovery, so browsers and readers find the release-notes RSS
+  feed (generated into feed_rss.xml by `make feeds` / zensical-feeds;
+  config in zensical.toml's [feeds] table). The upstream theme's
+  main.html is a bare `{% extends "base.html" %}` -- this override adds
+  exactly one block on top, after the `zensical-feeds init` template.
+  No ICS link: [feeds.ics] is disabled (release notes are not calendar
+  events), and advertising a nonexistent calendar would be a lie.
+-#}
+{% block extrahead %}
+  <link rel="alternate" type="application/rss+xml" title="Flying Circus platform changelog" href="https://docs.flyingcircus.io/feed_rss.xml" />
+{% endblock %}
